@@ -11,3 +11,5 @@ Project knowledge is organized by engineering concern.
 - `scenarios/`: scenario definitions and templates
 - `threat-models/`: attacker models, assumptions, and trust boundaries
 
+Current research documentation includes blue-team scan concept specs under
+`research/blue-team-scan-types/`.
