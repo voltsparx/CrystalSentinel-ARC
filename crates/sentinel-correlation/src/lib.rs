@@ -36,6 +36,7 @@ pub struct CorrelatedIncident {
     pub recognition_protocols: Vec<String>,
     pub analysis_lanes: Vec<String>,
     pub lane_concurrence: usize,
+    pub architecture_summary: Option<String>,
     pub highest_stage: MitigationStage,
     pub severity: IncidentSeverity,
     pub prevailing_posture: String,
@@ -81,6 +82,7 @@ fn correlate_bucket(
     let mut analysis_lanes = Vec::new();
     let mut highest_stage = MitigationStage::Observe;
     let mut max_confidence = 0u8;
+    let mut architecture_summary = None;
     let mut prevailing_posture = "baseline-observe".to_string();
     let mut stability_priority = false;
     let mut phantom_summary = None;
@@ -144,10 +146,19 @@ fn correlate_bucket(
         if stability_priority && !analysis_lanes.iter().any(|lane| lane == "bio-response") {
             analysis_lanes.push("bio-response".to_string());
         }
+        if !analysis_lanes
+            .iter()
+            .any(|lane| lane == "autonomy-architecture")
+        {
+            analysis_lanes.push("autonomy-architecture".to_string());
+        }
         if decision.posture.as_str() == "zen-recovery"
             && !analysis_lanes.iter().any(|lane| lane == "asm-zen-guard")
         {
             analysis_lanes.push("asm-zen-guard".to_string());
+        }
+        if architecture_summary.is_none() {
+            architecture_summary = Some(decision.autonomy_plan.narrative.clone());
         }
 
         if phantom_summary.is_none() {
@@ -189,7 +200,7 @@ fn correlate_bucket(
             .join(", ");
 
         timeline.push(format!(
-            "{}. family={} recognized={} labels={} lanes={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
+            "{}. family={} recognized={} labels={} lanes={} architecture={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
             event_index + 1,
             decision.assessment.signal.family.as_str(),
             decision
@@ -211,6 +222,7 @@ fn correlate_bucket(
             } else {
                 decision.assessment.signal.analysis_lanes.join(",")
             },
+            decision.autonomy_plan.narrative,
             decision.posture.as_str(),
             decision.assessment.stage.as_str(),
             decision.fast_path.kind.as_str(),
@@ -237,11 +249,12 @@ fn correlate_bucket(
         prevailing_posture.as_str(),
         highest_stage,
         stability_priority,
+        architecture_summary.as_deref(),
         phantom_summary.as_deref(),
         recovery_voice.as_deref(),
     );
     let operator_summary = format!(
-        "source={} severity={} stage={} posture={} stability_first={} families={} recognized={} labels={} protocols={} lanes={} lane_concurrence={} phantom={} recovery={} timeline_events={}",
+        "source={} severity={} stage={} posture={} stability_first={} families={} recognized={} labels={} protocols={} lanes={} lane_concurrence={} architecture={} phantom={} recovery={} timeline_events={}",
         source,
         severity.as_str(),
         highest_stage.as_str(),
@@ -269,6 +282,7 @@ fn correlate_bucket(
             analysis_lanes.join(", ")
         },
         lane_concurrence,
+        architecture_summary.as_deref().unwrap_or("none"),
         phantom_summary.as_deref().unwrap_or("none"),
         recovery_summary.as_deref().unwrap_or("none"),
         timeline.len()
@@ -284,6 +298,7 @@ fn correlate_bucket(
         recognition_protocols,
         analysis_lanes,
         lane_concurrence,
+        architecture_summary,
         highest_stage,
         severity,
         prevailing_posture,
@@ -321,6 +336,7 @@ fn human_summary_for(
     posture: &str,
     stage: MitigationStage,
     stability_priority: bool,
+    architecture_summary: Option<&str>,
     phantom_summary: Option<&str>,
     recovery_voice: Option<&str>,
 ) -> String {
@@ -349,12 +365,15 @@ fn human_summary_for(
     let phantom_line = phantom_summary
         .map(|summary| format!(" Phantom-Scan stayed active with {}.", summary))
         .unwrap_or_default();
+    let architecture_line = architecture_summary
+        .map(|summary| format!(" Sentinel balanced the runtime using {}.", summary))
+        .unwrap_or_default();
     let recovery_line = recovery_voice
         .map(|voice| format!(" {}", voice))
         .unwrap_or_default();
 
     format!(
-        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{fusion_line}{phantom_line}{recovery_line}",
+        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{fusion_line}{architecture_line}{phantom_line}{recovery_line}",
         stage = stage.as_str()
     )
 }

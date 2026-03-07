@@ -1,0 +1,13 @@
+[package]
+name = "sentinel-autonomy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-common = { path = "../sentinel-common" }
+sentinel-config = { path = "../sentinel-config" }
+sentinel-native-bridge = { path = "../sentinel-native-bridge" }
+
+[lib]
+path = "src/lib.rs"

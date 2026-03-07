@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use sentinel_autonomy::{plan_autonomy, ArchitecturePattern, AutonomyPlan};
 use sentinel_common::{AttackFamily, HealthSnapshot, MitigationStage, ThreatAssessment};
 use sentinel_config::RuntimeConfig;
 use sentinel_decoy::{DecoyGovernor, DecoyPlan, DecoyPrimitive};
@@ -159,6 +160,7 @@ pub struct RuntimeDecision {
     pub awareness: SituationAwareness,
     pub fast_path: FastPathDecision,
     pub asm_directive: AsmDefenseDirective,
+    pub autonomy_plan: AutonomyPlan,
     pub decoy_plan: Option<DecoyPlan>,
     pub integrity_assessment: Option<IntegrityAssessment>,
     pub recovery_triage: Option<RecoveryTriage>,
@@ -191,11 +193,13 @@ impl SentinelRuntime {
             },
         );
         let mut assessment = self.policy.assess(signal, health.clone());
+        let autonomy_plan = plan_autonomy(config, &assessment.signal, &health, asm_directive);
 
         apply_runtime_bounds(
             &mut assessment,
             config,
             &awareness,
+            &autonomy_plan,
             integrity_assessment.as_ref(),
         );
 
@@ -210,6 +214,7 @@ impl SentinelRuntime {
             None
         } else {
             DecoyGovernor::plan(config, &assessment.signal, &health)
+                .map(|plan| refine_decoy_plan(plan, &autonomy_plan))
         };
 
         let plan = adapt_plan(
@@ -217,6 +222,7 @@ impl SentinelRuntime {
             posture,
             &awareness,
             asm_directive,
+            &autonomy_plan,
             decoy_plan.as_ref(),
             integrity_assessment.as_ref(),
             recovery_triage.as_ref(),
@@ -229,6 +235,7 @@ impl SentinelRuntime {
             awareness,
             fast_path,
             asm_directive,
+            autonomy_plan,
             decoy_plan,
             integrity_assessment,
             recovery_triage,
@@ -311,9 +318,30 @@ fn apply_runtime_bounds(
     assessment: &mut ThreatAssessment,
     config: &RuntimeConfig,
     awareness: &SituationAwareness,
+    autonomy_plan: &AutonomyPlan,
     integrity_assessment: Option<&IntegrityAssessment>,
 ) {
     cap_stage(assessment, config.max_stage, "config-max-stage");
+
+    append_rationale(
+        assessment,
+        &format!(
+            "architecture={} autonomy={} fault_isolation={} headroom_pct={}",
+            autonomy_plan.pattern.as_str(),
+            autonomy_plan.autonomy_mode.as_str(),
+            autonomy_plan.fault_isolation.as_str(),
+            autonomy_plan.stability_headroom_pct
+        ),
+    );
+
+    if matches!(
+        autonomy_plan.autonomy_mode,
+        sentinel_config::AutonomyMode::Assisted
+    ) && assessment.stage.rank() > MitigationStage::Contain.rank()
+    {
+        assessment.stage = MitigationStage::OperatorApproval;
+        append_rationale(assessment, "autonomy=assisted->operator-approval");
+    }
 
     if matches!(awareness.fragility, FragilityLevel::Critical) {
         cap_stage(assessment, MitigationStage::Throttle, "fragile-asset-guard");
@@ -425,14 +453,31 @@ fn adapt_plan(
     posture: RuntimePosture,
     awareness: &SituationAwareness,
     asm_directive: AsmDefenseDirective,
+    autonomy_plan: &AutonomyPlan,
     decoy_plan: Option<&DecoyPlan>,
     integrity_assessment: Option<&IntegrityAssessment>,
     recovery_triage: Option<&RecoveryTriage>,
 ) -> ResponsePlan {
+    push_unique(&mut plan.actions, ResponseAction::EngageFastPathFusion);
+    push_unique(
+        &mut plan.actions,
+        ResponseAction::EnableFaultIsolatedEngines,
+    );
+    push_unique(&mut plan.actions, ResponseAction::ReserveStabilityHeadroom);
+    if autonomy_plan.allow_mesh_distribution {
+        push_unique(&mut plan.actions, ResponseAction::DistributeObservationLoad);
+    }
+    if matches!(autonomy_plan.pattern, ArchitecturePattern::FragileMeshGuard) {
+        push_unique(&mut plan.actions, ResponseAction::ProtectFragileAssets);
+    }
+
     match posture {
         RuntimePosture::BaselineObserve => {
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
-            plan.narrative = format!("{} awareness={}", plan.narrative, awareness.summary);
+            plan.narrative = format!(
+                "{} awareness={} architecture={}",
+                plan.narrative, awareness.summary, autonomy_plan.narrative
+            );
         }
         RuntimePosture::DecoyFirstCapture => {
             push_unique(&mut plan.actions, ResponseAction::TriggerIdfWindow);
@@ -444,8 +489,8 @@ fn adapt_plan(
             push_unique(&mut plan.actions, ResponseAction::SampleAmbientResonance);
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
-                "Decoy-first capture posture opened a bounded IDF/Phantom window. {} awareness={}",
-                plan.narrative, awareness.summary
+                "Decoy-first capture posture opened a bounded IDF/Phantom window. {} awareness={} architecture={}",
+                plan.narrative, awareness.summary, autonomy_plan.narrative
             );
         }
         RuntimePosture::BoundedContainment => {
@@ -454,16 +499,16 @@ fn adapt_plan(
                 push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
             }
             plan.narrative = format!(
-                "Bounded containment posture applied. {} awareness={}",
-                plan.narrative, awareness.summary
+                "Bounded containment posture applied. {} awareness={} architecture={}",
+                plan.narrative, awareness.summary, autonomy_plan.narrative
             );
         }
         RuntimePosture::ProtectiveIsolation => {
             push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
-                "Protective isolation posture applied under heavy pressure. {} awareness={}",
-                plan.narrative, awareness.summary
+                "Protective isolation posture applied under heavy pressure. {} awareness={} architecture={}",
+                plan.narrative, awareness.summary, autonomy_plan.narrative
             );
         }
         RuntimePosture::ZenRecovery => {
@@ -474,12 +519,13 @@ fn adapt_plan(
             push_unique(&mut plan.actions, ResponseAction::LimitAutomation);
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
-                "ASM zen recovery posture reduced exposure and non-essential activity while the defended system regains health. asm_mode={} observation_window_ms={} exposure_reduction_pct={} resume_standby_after_ms={} awareness={}",
+                "ASM zen recovery posture reduced exposure and non-essential activity while the defended system regains health. asm_mode={} observation_window_ms={} exposure_reduction_pct={} resume_standby_after_ms={} awareness={} architecture={}",
                 asm_directive.mode.as_str(),
                 asm_directive.observation_window_ms,
                 asm_directive.exposure_reduction_pct,
                 asm_directive.resume_standby_after_ms,
-                awareness.summary
+                awareness.summary,
+                autonomy_plan.narrative
             );
         }
         RuntimePosture::DefensiveHibernation => {
@@ -492,8 +538,8 @@ fn adapt_plan(
                 ResponseAction::RequireOperatorApproval,
             ];
             plan.narrative = format!(
-                "Defensive hibernation limited autonomous action to protect Sentinel integrity and fragile assets. awareness={}",
-                awareness.summary
+                "Defensive hibernation limited autonomous action to protect Sentinel integrity and fragile assets. awareness={} architecture={}",
+                awareness.summary, autonomy_plan.narrative
             );
         }
     }
@@ -577,6 +623,42 @@ fn adapt_plan(
         plan.narrative = format!("{} recovery={}", plan.narrative, recovery.summary);
     }
 
+    plan
+}
+
+fn refine_decoy_plan(mut plan: DecoyPlan, autonomy_plan: &AutonomyPlan) -> DecoyPlan {
+    plan.ghost_slots = plan.ghost_slots.min(autonomy_plan.max_decoy_slots);
+    if autonomy_plan.max_decoy_slots == 0 {
+        plan.primitives.clear();
+    }
+
+    if !autonomy_plan.allow_spot_mimicry {
+        plan.primitives
+            .retain(|primitive| !matches!(primitive, DecoyPrimitive::SpotMimicry));
+    }
+
+    let mut disable_phantom = false;
+    if let Some(phantom) = &mut plan.phantom_observation {
+        phantom.sample_budget = phantom.sample_budget.min(autonomy_plan.phantom_sample_cap);
+        if autonomy_plan.phantom_sample_cap == 0 {
+            disable_phantom = true;
+        }
+    }
+    if disable_phantom {
+        plan.phantom_observation = None;
+        plan.primitives
+            .retain(|primitive| !matches!(primitive, DecoyPrimitive::PhantomRhythmRandomizer));
+    }
+
+    if autonomy_plan.stability_headroom_pct >= 40 {
+        plan.cadence_ms = plan.cadence_ms.max(700);
+        plan.jitter_ms = plan.jitter_ms.min(16);
+    }
+
+    plan.narrative = format!(
+        "{} architecture={}",
+        plan.narrative, autonomy_plan.narrative
+    );
     plan
 }
 
@@ -681,8 +763,9 @@ fn push_unique(actions: &mut Vec<ResponseAction>, action: ResponseAction) {
 #[cfg(test)]
 mod tests {
     use super::{RuntimePosture, SentinelRuntime};
+    use sentinel_autonomy::ArchitecturePattern;
     use sentinel_common::{HealthSnapshot, MitigationStage, TelemetryKind};
-    use sentinel_config::RuntimeConfig;
+    use sentinel_config::{DeploymentShape, PerformanceProfile, RuntimeConfig};
     use sentinel_response::ResponseAction;
     use sentinel_telemetry::TelemetryEvent;
 
@@ -932,5 +1015,39 @@ mod tests {
             .plan
             .actions
             .contains(&ResponseAction::ResumeStandbyWhenStable));
+    }
+
+    #[test]
+    fn fragile_mesh_architecture_caps_decoy_spread() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig {
+            deployment_shape: DeploymentShape::FragileMesh,
+            performance_profile: PerformanceProfile::StabilityFirst,
+            ..RuntimeConfig::default()
+        };
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "198.51.100.77".to_string(),
+            summary: "payload stage_loader reflective_loader".to_string(),
+            health: HealthSnapshot::default(),
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(
+            decision.autonomy_plan.pattern,
+            ArchitecturePattern::FragileMeshGuard
+        );
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ProtectFragileAssets));
+        assert!(decision.autonomy_plan.stability_headroom_pct >= 45);
+        if let Some(decoy) = &decision.decoy_plan {
+            assert!(!decoy
+                .primitives
+                .contains(&sentinel_decoy::DecoyPrimitive::SpotMimicry));
+            assert!(decoy.ghost_slots <= decision.autonomy_plan.max_decoy_slots);
+        }
     }
 }

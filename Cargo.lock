@@ -49,6 +49,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sentinel-autonomy"
+version = "0.1.0"
+dependencies = [
+ "sentinel-common",
+ "sentinel-config",
+ "sentinel-native-bridge",
+]
+
+[[package]]
 name = "sentinel-bio-response"
 version = "0.1.0"
 dependencies = [
@@ -166,6 +175,7 @@ dependencies = [
 name = "sentinel-runtime"
 version = "0.1.0"
 dependencies = [
+ "sentinel-autonomy",
  "sentinel-common",
  "sentinel-config",
  "sentinel-decoy",

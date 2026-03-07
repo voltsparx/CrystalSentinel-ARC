@@ -5,6 +5,7 @@ members = [
   "apps/sentinel-console-api",
   "crates/sentinel-common",
   "crates/sentinel-config",
+  "crates/sentinel-autonomy",
   "crates/sentinel-telemetry",
   "crates/sentinel-flow",
   "crates/sentinel-detection",

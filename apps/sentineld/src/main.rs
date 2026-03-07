@@ -63,6 +63,22 @@ fn main() {
             decision.asm_directive.keep_decoy_capture,
             decision.asm_directive.resume_standby_after_ms
         );
+        println!(
+            "autonomy: mode={} pattern={} fault_isolation={} headroom_pct={} lanes=packet:{} classifier:{} correlation:{} reporter:{} mesh_distribution={} work_split=rust:{} c:{} cpp:{} asm:{}",
+            decision.autonomy_plan.autonomy_mode.as_str(),
+            decision.autonomy_plan.pattern.as_str(),
+            decision.autonomy_plan.fault_isolation.as_str(),
+            decision.autonomy_plan.stability_headroom_pct,
+            decision.autonomy_plan.packet_lanes,
+            decision.autonomy_plan.classifier_lanes,
+            decision.autonomy_plan.correlation_lanes,
+            decision.autonomy_plan.reporter_lanes,
+            decision.autonomy_plan.allow_mesh_distribution,
+            decision.autonomy_plan.native_work_split.rust_control_pct,
+            decision.autonomy_plan.native_work_split.c_guard_pct,
+            decision.autonomy_plan.native_work_split.cpp_classifier_pct,
+            decision.autonomy_plan.native_work_split.asm_fast_path_pct
+        );
         println!("awareness: {}", decision.awareness.summary);
         if let Some(decoy) = &decision.decoy_plan {
             println!(

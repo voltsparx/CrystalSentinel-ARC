@@ -88,6 +88,10 @@ impl ForensicReporter {
                 incident.lane_concurrence
             ));
             sections.push(format!(
+                "architecture={}",
+                incident.architecture_summary.as_deref().unwrap_or("none")
+            ));
+            sections.push(format!(
                 "phantom={}",
                 incident.phantom_summary.as_deref().unwrap_or("none")
             ));
@@ -189,15 +193,21 @@ fn noticed_line(incident: &CorrelatedIncident) -> String {
         .as_deref()
         .map(|summary| format!(" Phantom-Scan stayed internally clear with {}.", summary))
         .unwrap_or_default();
+    let architecture_note = incident
+        .architecture_summary
+        .as_deref()
+        .map(|summary| format!(" Runtime balance stayed under {}.", summary))
+        .unwrap_or_default();
 
     format!(
-        "We saw {} behavior coming from {}. The main themes were {}.{}{}{}",
+        "We saw {} behavior coming from {}. The main themes were {}.{}{}{}{}",
         incident.severity.as_str(),
         incident.primary_source,
         incident.families.join(", "),
         recognition_note,
         lane_note,
-        phantom_note
+        phantom_note,
+        architecture_note
     )
 }
 
@@ -253,8 +263,13 @@ fn action_line(incident: &CorrelatedIncident) -> String {
     } else {
         ""
     };
+    let architecture = incident
+        .architecture_summary
+        .as_deref()
+        .map(|summary| format!(" The runtime stayed balanced under {}.", summary))
+        .unwrap_or_default();
 
-    format!("{base}{stability}{phantom}{scan_friction}{fusion}")
+    format!("{base}{stability}{phantom}{scan_friction}{fusion}{architecture}")
 }
 
 fn meaning_line(incident: &CorrelatedIncident) -> String {
@@ -409,6 +424,9 @@ fn comfort_line(incident: &CorrelatedIncident) -> String {
     if let Some(recovery) = incident.recovery_summary.as_deref() {
         parts.push(format!("recovery plan {}", recovery));
     }
+    if let Some(architecture) = incident.architecture_summary.as_deref() {
+        parts.push(format!("runtime balance {}", architecture));
+    }
 
     if parts.is_empty() {
         "Sentinel stayed calm, explainable, and evidence-driven.".to_string()
@@ -438,8 +456,12 @@ mod tests {
                 "heuristic".to_string(),
                 "decoy-control".to_string(),
                 "bio-response".to_string(),
+                "autonomy-architecture".to_string(),
             ],
             lane_concurrence: 5,
+            architecture_summary: Some(
+                "pattern=pressure-shield autonomy=guardian-autonomous deployment=single-node performance=pressure-shield fault_isolation=strict lanes=packet:4 classifier:3 correlation:2 reporter:1 headroom_pct=30 decoy_cap=5 phantom_sample_cap=4 mesh_distribution=false work_split=rust:30 c:20 cpp:20 asm:30".to_string(),
+            ),
             highest_stage: MitigationStage::Throttle,
             severity: IncidentSeverity::Medium,
             prevailing_posture: "decoy-first-capture".to_string(),

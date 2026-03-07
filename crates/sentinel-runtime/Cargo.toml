@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+sentinel-autonomy = { path = "../sentinel-autonomy" }
 sentinel-common = { path = "../sentinel-common" }
 sentinel-config = { path = "../sentinel-config" }
 sentinel-decoy = { path = "../sentinel-decoy" }
