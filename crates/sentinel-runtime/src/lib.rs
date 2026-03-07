@@ -2,6 +2,7 @@
 
 use sentinel_common::{AttackFamily, HealthSnapshot, MitigationStage, ThreatAssessment};
 use sentinel_config::RuntimeConfig;
+use sentinel_decoy::{DecoyGovernor, DecoyPlan, DecoyPrimitive};
 use sentinel_detection::{detect_signal, fast_assess_event};
 use sentinel_education::find_lesson;
 use sentinel_forensics::InvestigationRecord;
@@ -83,6 +84,29 @@ impl RuntimePosture {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecoveryMode {
+    FastRecovery,
+    DeepHeal,
+}
+
+impl RecoveryMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::FastRecovery => "fast-recovery",
+            Self::DeepHeal => "deep-heal",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RecoveryTriage {
+    pub mode: RecoveryMode,
+    pub stability_window_ms: u16,
+    pub summary: String,
+    pub guardian_voice: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct SituationAwareness {
     pub fragility: FragilityLevel,
@@ -128,7 +152,9 @@ pub struct RuntimeDecision {
     pub posture: RuntimePosture,
     pub awareness: SituationAwareness,
     pub fast_path: FastPathDecision,
+    pub decoy_plan: Option<DecoyPlan>,
     pub integrity_assessment: Option<IntegrityAssessment>,
+    pub recovery_triage: Option<RecoveryTriage>,
     pub assessment: ThreatAssessment,
     pub plan: ResponsePlan,
     pub record: InvestigationRecord,
@@ -145,20 +171,32 @@ impl SentinelRuntime {
     pub fn process_event(&self, config: &RuntimeConfig, event: &TelemetryEvent) -> RuntimeDecision {
         let fast_path = fast_assess_event(event);
         let signal = detect_signal(event);
+        let health = effective_health(config, &event.health);
         let integrity_assessment = self.integrity.assess(&event.summary);
         let awareness = SituationAwareness::from_inputs(config, event, &signal, fast_path);
-        let mut assessment = self.policy.assess(signal, effective_health(config, &event.health));
+        let mut assessment = self.policy.assess(signal, health.clone());
 
         apply_runtime_bounds(&mut assessment, config, &awareness, integrity_assessment.as_ref());
 
         let posture = select_posture(&assessment, &awareness, fast_path);
         apply_posture_bounds(&mut assessment, posture, &awareness);
+        let recovery_triage = derive_recovery_triage(&health, integrity_assessment.as_ref());
+        let decoy_plan = if matches!(
+            recovery_triage.as_ref().map(|triage| triage.mode),
+            Some(RecoveryMode::DeepHeal)
+        ) {
+            None
+        } else {
+            DecoyGovernor::plan(config, &assessment.signal, &health)
+        };
 
         let plan = adapt_plan(
             ResponsePlanner::plan(&assessment),
             posture,
             &awareness,
+            decoy_plan.as_ref(),
             integrity_assessment.as_ref(),
+            recovery_triage.as_ref(),
         );
         let record = InvestigationRecord::from_assessment(&assessment, &plan);
         let teaching_hint = teaching_hint_for(&assessment, posture, integrity_assessment.as_ref());
@@ -167,7 +205,9 @@ impl SentinelRuntime {
             posture,
             awareness,
             fast_path,
+            decoy_plan,
             integrity_assessment,
+            recovery_triage,
             assessment,
             plan,
             record,
@@ -313,7 +353,9 @@ fn adapt_plan(
     mut plan: ResponsePlan,
     posture: RuntimePosture,
     awareness: &SituationAwareness,
+    decoy_plan: Option<&DecoyPlan>,
     integrity_assessment: Option<&IntegrityAssessment>,
+    recovery_triage: Option<&RecoveryTriage>,
 ) -> ResponsePlan {
     match posture {
         RuntimePosture::BaselineObserve => {
@@ -360,6 +402,38 @@ fn adapt_plan(
         }
     }
 
+    if let Some(decoy) = decoy_plan {
+        if decoy
+            .primitives
+            .iter()
+            .any(|primitive| matches!(primitive, DecoyPrimitive::AmbientMist))
+        {
+            push_unique(&mut plan.actions, ResponseAction::EnableAmbientDecoyMist);
+        }
+        if decoy
+            .primitives
+            .iter()
+            .any(|primitive| matches!(primitive, DecoyPrimitive::CadenceRandomizer))
+        {
+            push_unique(&mut plan.actions, ResponseAction::EnableCadenceRandomizer);
+        }
+        if decoy
+            .primitives
+            .iter()
+            .any(|primitive| matches!(primitive, DecoyPrimitive::PhantomRhythmRandomizer))
+        {
+            push_unique(&mut plan.actions, ResponseAction::EnablePhantomRhythmRandomizer);
+        }
+        if decoy
+            .primitives
+            .iter()
+            .any(|primitive| matches!(primitive, DecoyPrimitive::SpotMimicry))
+        {
+            push_unique(&mut plan.actions, ResponseAction::EnableSpotMimicry);
+        }
+        plan.narrative = format!("{} decoy={}", plan.narrative, decoy.narrative);
+    }
+
     if let Some(integrity) = integrity_assessment {
         push_unique(&mut plan.actions, ResponseAction::VerifyArtifactBaseline);
 
@@ -374,6 +448,21 @@ fn adapt_plan(
         }
 
         plan.narrative = format!("{} integrity={}", plan.narrative, integrity.detail);
+    }
+
+    if let Some(recovery) = recovery_triage {
+        match recovery.mode {
+            RecoveryMode::FastRecovery => {
+                push_unique(&mut plan.actions, ResponseAction::StartFastRecovery);
+            }
+            RecoveryMode::DeepHeal => {
+                push_unique(&mut plan.actions, ResponseAction::EnterDeepHealStabilityMode);
+                push_unique(&mut plan.actions, ResponseAction::ResumeServicesGradually);
+                push_unique(&mut plan.actions, ResponseAction::LimitAutomation);
+                push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+            }
+        }
+        plan.narrative = format!("{} recovery={}", plan.narrative, recovery.summary);
     }
 
     plan
@@ -418,6 +507,35 @@ fn contains_any(summary: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| summary.contains(needle))
 }
 
+fn derive_recovery_triage(
+    health: &HealthSnapshot,
+    integrity_assessment: Option<&IntegrityAssessment>,
+) -> Option<RecoveryTriage> {
+    let integrity = integrity_assessment?;
+    let high_stress = health.cpu_load_pct >= 85
+        || health.memory_load_pct >= 85
+        || health.thermal_c >= 84
+        || health.passive_only;
+
+    match (integrity.verdict, high_stress) {
+        (IntegrityVerdict::RestorableCompromise, false) => Some(RecoveryTriage {
+            mode: RecoveryMode::FastRecovery,
+            stability_window_ms: 500,
+            summary: "mode=fast-recovery stability_window_ms=500 restore=shadow-vault services=quick-sync decoys=resume-when-stable".to_string(),
+            guardian_voice: "Sentinel is doing a quick recovery. Core services are being refreshed and the environment remains stable.".to_string(),
+        }),
+        (IntegrityVerdict::CriticalCompromise, _)
+        | (IntegrityVerdict::RestorableCompromise, true)
+        | (IntegrityVerdict::DriftDetected, true) => Some(RecoveryTriage {
+            mode: RecoveryMode::DeepHeal,
+            stability_window_ms: 500,
+            summary: "mode=deep-heal stability_window_ms=500 exposure=minimal decoys=suspended restore=gradual-awakening".to_string(),
+            guardian_voice: "Sentinel entered a quiet recovery mode to protect the system. Core protection stays up while non-essential activity remains paused.".to_string(),
+        }),
+        _ => None,
+    }
+}
+
 fn push_unique(actions: &mut Vec<ResponseAction>, action: ResponseAction) {
     if !actions.contains(&action) {
         actions.push(action);
@@ -446,8 +564,21 @@ mod tests {
         let decision = runtime.process_event(&config, &event);
 
         assert_eq!(decision.posture, RuntimePosture::DecoyFirstCapture);
+        assert!(decision.decoy_plan.is_some());
         assert!(decision.plan.actions.contains(&ResponseAction::TriggerIdfWindow));
+        assert!(decision.plan.actions.contains(&ResponseAction::EnableAmbientDecoyMist));
+        assert!(decision.plan.actions.contains(&ResponseAction::EnableCadenceRandomizer));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::EnablePhantomRhythmRandomizer));
         assert!(decision.plan.actions.contains(&ResponseAction::FocusPhantomObservation));
+        assert!(decision
+            .decoy_plan
+            .as_ref()
+            .expect("decoy plan should exist")
+            .phantom_observation
+            .is_some());
     }
 
     #[test]
@@ -511,7 +642,54 @@ mod tests {
         let decision = runtime.process_event(&config, &event);
 
         assert!(decision.integrity_assessment.is_some());
+        assert!(decision.recovery_triage.is_some());
+        assert_eq!(
+            decision
+                .recovery_triage
+                .as_ref()
+                .expect("recovery triage should exist")
+                .mode,
+            super::RecoveryMode::FastRecovery
+        );
         assert!(decision.plan.actions.contains(&ResponseAction::RestoreFromShadowVault));
         assert!(decision.plan.actions.contains(&ResponseAction::LockArtifact));
+        assert!(decision.plan.actions.contains(&ResponseAction::StartFastRecovery));
+    }
+
+    #[test]
+    fn critical_integrity_event_enters_deep_heal_and_suspends_decoys() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig::default();
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Integrity,
+            source: "sentinel-self".to_string(),
+            summary: "integrity_breach syscall_table rootkit hook".to_string(),
+            health: HealthSnapshot {
+                cpu_load_pct: 92,
+                memory_load_pct: 88,
+                thermal_c: 86,
+                passive_only: false,
+            },
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(
+            decision
+                .recovery_triage
+                .as_ref()
+                .expect("recovery triage should exist")
+                .mode,
+            super::RecoveryMode::DeepHeal
+        );
+        assert!(decision.decoy_plan.is_none());
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::EnterDeepHealStabilityMode));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ResumeServicesGradually));
     }
 }

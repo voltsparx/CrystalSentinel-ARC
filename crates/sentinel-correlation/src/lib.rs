@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use sentinel_common::MitigationStage;
+use sentinel_response::ResponseAction;
 use sentinel_runtime::RuntimeDecision;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,6 +34,10 @@ pub struct CorrelatedIncident {
     pub highest_stage: MitigationStage,
     pub severity: IncidentSeverity,
     pub prevailing_posture: String,
+    pub stability_priority: bool,
+    pub phantom_summary: Option<String>,
+    pub recovery_summary: Option<String>,
+    pub recovery_voice: Option<String>,
     pub timeline: Vec<String>,
     pub operator_summary: String,
     pub human_summary: String,
@@ -64,6 +69,10 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
     let mut highest_stage = MitigationStage::Observe;
     let mut max_confidence = 0u8;
     let mut prevailing_posture = "baseline-observe".to_string();
+    let mut stability_priority = false;
+    let mut phantom_summary = None;
+    let mut recovery_summary = None;
+    let mut recovery_voice = None;
     let mut timeline = Vec::new();
 
     for (event_index, decision) in bucket.iter().enumerate() {
@@ -78,6 +87,36 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
         }
 
         max_confidence = max_confidence.max(decision.assessment.signal.confidence);
+        stability_priority |= decision
+            .plan
+            .actions
+            .contains(&ResponseAction::PreserveServiceContinuity);
+
+        if phantom_summary.is_none() {
+            phantom_summary = decision.decoy_plan.as_ref().and_then(|plan| {
+                plan.phantom_observation.as_ref().map(|phantom| {
+                    format!(
+                        "bounded cadence_ms={} jitter_ms={} phase_offset_ms={} burst_slots={}",
+                        phantom.cadence_ms,
+                        phantom.jitter_ms,
+                        phantom.phase_offset_ms,
+                        phantom.burst_slots
+                    )
+                })
+            });
+        }
+        if recovery_summary.is_none() {
+            recovery_summary = decision
+                .recovery_triage
+                .as_ref()
+                .map(|triage| triage.summary.clone());
+        }
+        if recovery_voice.is_none() {
+            recovery_voice = decision
+                .recovery_triage
+                .as_ref()
+                .map(|triage| triage.guardian_voice.clone());
+        }
 
         let actions = decision
             .plan
@@ -88,13 +127,18 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
             .join(", ");
 
         timeline.push(format!(
-            "{}. family={} posture={} stage={} fast_kind={} actions=[{}] detail={} rationale={}",
+            "{}. family={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
             event_index + 1,
             decision.assessment.signal.family.as_str(),
             decision.posture.as_str(),
             decision.assessment.stage.as_str(),
             decision.fast_path.kind.as_str(),
             actions,
+            decision
+                .decoy_plan
+                .as_ref()
+                .map(|plan| plan.narrative.as_str())
+                .unwrap_or("none"),
             decision.assessment.signal.detail,
             decision.assessment.rationale
         ));
@@ -102,14 +146,25 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
 
     let severity = severity_for(highest_stage, max_confidence);
     let family_list = families.join(", ");
-    let human_summary = human_summary_for(&source, &family_list, prevailing_posture.as_str(), highest_stage);
+    let human_summary = human_summary_for(
+        &source,
+        &family_list,
+        prevailing_posture.as_str(),
+        highest_stage,
+        stability_priority,
+        phantom_summary.as_deref(),
+        recovery_voice.as_deref(),
+    );
     let operator_summary = format!(
-        "source={} severity={} stage={} posture={} families={} timeline_events={}",
+        "source={} severity={} stage={} posture={} stability_first={} families={} phantom={} recovery={} timeline_events={}",
         source,
         severity.as_str(),
         highest_stage.as_str(),
         prevailing_posture,
+        stability_priority,
         family_list,
+        phantom_summary.as_deref().unwrap_or("none"),
+        recovery_summary.as_deref().unwrap_or("none"),
         timeline.len()
     );
 
@@ -121,6 +176,10 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
         highest_stage,
         severity,
         prevailing_posture,
+        stability_priority,
+        phantom_summary,
+        recovery_summary,
+        recovery_voice,
         timeline,
         operator_summary,
         human_summary,
@@ -142,9 +201,29 @@ fn severity_for(stage: MitigationStage, max_confidence: u8) -> IncidentSeverity 
     }
 }
 
-fn human_summary_for(source: &str, families: &str, posture: &str, stage: MitigationStage) -> String {
+fn human_summary_for(
+    source: &str,
+    families: &str,
+    posture: &str,
+    stage: MitigationStage,
+    stability_priority: bool,
+    phantom_summary: Option<&str>,
+    recovery_voice: Option<&str>,
+) -> String {
+    let stability_line = if stability_priority {
+        " It kept service stability ahead of aggressive action."
+    } else {
+        ""
+    };
+    let phantom_line = phantom_summary
+        .map(|summary| format!(" Phantom-Scan stayed active with {}.", summary))
+        .unwrap_or_default();
+    let recovery_line = recovery_voice
+        .map(|voice| format!(" {}", voice))
+        .unwrap_or_default();
+
     format!(
-        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.",
+        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{stability_line}{phantom_line}{recovery_line}",
         stage = stage.as_str()
     )
 }
@@ -185,6 +264,7 @@ mod tests {
         assert_eq!(incidents.len(), 1);
         assert_eq!(incidents[0].timeline.len(), 2);
         assert!(incidents[0].families.len() >= 2);
+        assert!(incidents[0].stability_priority);
     }
 
     #[test]

@@ -33,11 +33,14 @@ binary or one unreadable folder.
 |   |-- sentinel-telemetry/
 |   |-- sentinel-flow/
 |   |-- sentinel-detection/
+|   |-- sentinel-decoy/
 |   |-- sentinel-education/
+|   |-- sentinel-integrity/
 |   |-- sentinel-native-bridge/
 |   |-- sentinel-correlation/
 |   |-- sentinel-reporting/
 |   |-- sentinel-runtime/
+|   |-- sentinel-shadow-vault/
 |   |-- sentinel-policy/
 |   |-- sentinel-response/
 |   |-- sentinel-forensics/
@@ -130,16 +133,24 @@ binary or one unreadable folder.
 - `sentinel-telemetry` ingests packet, host, and service data.
 - `sentinel-flow` converts raw observations into sessions and state.
 - `sentinel-detection` executes signatures, heuristics, and anomaly logic.
+- `sentinel-decoy` plans health-aware ambient mist, IDF windows, spot mimicry,
+  cadence randomization, and bounded Phantom observation variance while
+  preserving internal truth tagging.
 - `sentinel-education` turns scan types and defensive behavior into operator
   teaching material and harmlessness guarantees.
+- `sentinel-integrity` evaluates drift, tamper, and baseline violations and
+  decides when a restorable compromise exists.
 - `sentinel-native-bridge` defines the contracts to C, C++, and ASM support
   layers without forcing those components into the Rust-only control plane.
 - `sentinel-correlation` assembles multiple runtime decisions into incidents,
   timelines, and evidence bundles.
 - `sentinel-reporting` produces operator, forensic, and plain-language
-  explanations of what happened.
+  explanations of what happened, including calm care-centered guidance for the
+  person behind the screen.
 - `sentinel-runtime` fuses fast-path signals, situation awareness,
   self-integrity, and bounded autonomous decisions into one runtime loop.
+- `sentinel-shadow-vault` stores the trusted artifact inventory and plans
+  bounded restoration when integrity-safe recovery is possible.
 - `sentinel-policy` selects a response based on confidence, asset criticality,
   and safety policy.
 - `sentinel-response` performs bounded defensive actions and rollback.
@@ -157,6 +168,8 @@ binary or one unreadable folder.
 
 ## Safety and Fail-Safe Boundaries
 
+- Stability-first control means the runtime preserves host, service, and
+  network stability before escalating into stronger protection.
 - Situation-aware control must account for attack stage, asset criticality,
   protocol context, and whether a protected device is fragile or
   safety-sensitive.

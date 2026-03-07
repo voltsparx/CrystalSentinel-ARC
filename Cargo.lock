@@ -33,8 +33,17 @@ version = "0.1.0"
 dependencies = [
  "sentinel-common",
  "sentinel-config",
+ "sentinel-response",
  "sentinel-runtime",
  "sentinel-telemetry",
+]
+
+[[package]]
+name = "sentinel-decoy"
+version = "0.1.0"
+dependencies = [
+ "sentinel-common",
+ "sentinel-config",
 ]
 
 [[package]]
@@ -105,6 +114,7 @@ version = "0.1.0"
 dependencies = [
  "sentinel-common",
  "sentinel-config",
+ "sentinel-decoy",
  "sentinel-detection",
  "sentinel-education",
  "sentinel-forensics",
@@ -145,6 +155,9 @@ dependencies = [
 name = "sentinelctl"
 version = "0.1.0"
 dependencies = [
+ "sentinel-common",
+ "sentinel-config",
+ "sentinel-decoy",
  "sentinel-detection",
  "sentinel-education",
  "sentinel-native-bridge",

@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+use sentinel_config::{LaunchProfile, RuntimeConfig};
+use sentinel_decoy::DecoyGovernor;
 use sentinel_detection::{seed_framework_catalog, seed_intel_sources, seed_pattern_identities};
 use sentinel_education::{find_lesson, harmless_scan_types, learning_catalog};
 use sentinel_native_bridge::native_layer_manifest;
@@ -34,6 +36,55 @@ fn main() {
                     identity.protocols.join(","),
                     identity.sources.join(",")
                 );
+            }
+        }
+        "profiles" => {
+            for profile in [LaunchProfile::Protector, LaunchProfile::Architect] {
+                println!("{}", profile.as_str());
+            }
+        }
+        "decoys" => {
+            let source = std::env::args()
+                .nth(2)
+                .unwrap_or_else(|| "203.0.113.88".to_string());
+            let summary = std::env::args()
+                .nth(3)
+                .unwrap_or_else(|| "syn probe recon fingerprint".to_string());
+            let signal = sentinel_common::ThreatSignal {
+                source_name: source,
+                family: sentinel_common::AttackFamily::OffensiveScan,
+                confidence: 84,
+                detail: summary,
+            };
+
+            for profile in [LaunchProfile::Protector, LaunchProfile::Architect] {
+                let config = RuntimeConfig {
+                    launch_profile: profile,
+                    ..RuntimeConfig::default()
+                };
+                if let Some(plan) = DecoyGovernor::plan(&config, &signal, &sentinel_common::HealthSnapshot::default()) {
+                    println!(
+                        "{} -> intensity={} cadence_ms={} ghost_slots={} primitives={}",
+                        profile.as_str(),
+                        plan.intensity.as_str(),
+                        plan.cadence_ms,
+                        plan.ghost_slots,
+                        plan.primitives
+                            .iter()
+                            .map(|primitive| primitive.as_str())
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    );
+                    if let Some(phantom) = &plan.phantom_observation {
+                        println!(
+                            "  phantom -> cadence_ms={} jitter_ms={} phase_offset_ms={} burst_slots={}",
+                            phantom.cadence_ms,
+                            phantom.jitter_ms,
+                            phantom.phase_offset_ms,
+                            phantom.burst_slots
+                        );
+                    }
+                }
             }
         }
         "scenarios" => {
@@ -76,7 +127,7 @@ fn main() {
             }
         }
         _ => {
-            println!("usage: sentinelctl [intel|frameworks|patterns|scenarios|layers|teach|safe-scans]");
+            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|teach|safe-scans]");
         }
     }
 }

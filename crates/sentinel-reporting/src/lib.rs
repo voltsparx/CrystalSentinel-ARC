@@ -8,12 +8,14 @@ pub struct ReporterBundle {
     pub forensic_report: String,
     pub human_report: String,
     pub teaching_report: String,
+    pub care_report: String,
 }
 
 pub struct OperatorReporter;
 pub struct ForensicReporter;
 pub struct NarrativeReporter;
 pub struct TeachingReporter;
+pub struct CareReporter;
 pub struct ReporterEngine;
 
 impl OperatorReporter {
@@ -42,13 +44,22 @@ impl ForensicReporter {
         let mut sections = vec!["CrystalSentinel Forensic Report".to_string()];
         for incident in incidents {
             sections.push(format!(
-                "[{}] source={} stage={} severity={}",
+                "[{}] source={} stage={} severity={} stability_first={}",
                 incident.incident_id,
                 incident.primary_source,
                 incident.highest_stage.as_str(),
-                incident.severity.as_str()
+                incident.severity.as_str(),
+                incident.stability_priority
             ));
             sections.push(format!("families={}", incident.families.join(", ")));
+            sections.push(format!(
+                "phantom={}",
+                incident.phantom_summary.as_deref().unwrap_or("none")
+            ));
+            sections.push(format!(
+                "recovery={}",
+                incident.recovery_summary.as_deref().unwrap_or("none")
+            ));
             for item in &incident.timeline {
                 sections.push(format!("timeline {}", item));
             }
@@ -91,6 +102,23 @@ impl TeachingReporter {
     }
 }
 
+impl CareReporter {
+    pub fn render(incidents: &[CorrelatedIncident]) -> String {
+        if incidents.is_empty() {
+            return "CrystalSentinel Care Report\nThe system is calm. If anything changes, Sentinel will explain it clearly and tell you whether any action is needed.".to_string();
+        }
+
+        let mut sections = vec!["CrystalSentinel Care Report".to_string()];
+        for incident in incidents {
+            sections.push(format!("{}:", incident.incident_id));
+            sections.push(format!("Right now: {}", status_line(incident)));
+            sections.push(format!("Do you need to act? {}", guidance_line(incident)));
+            sections.push(format!("Why this felt safe: {}", comfort_line(incident)));
+        }
+        sections.join("\n")
+    }
+}
+
 impl ReporterEngine {
     pub fn render_all(incidents: &[CorrelatedIncident]) -> ReporterBundle {
         ReporterBundle {
@@ -98,21 +126,29 @@ impl ReporterEngine {
             forensic_report: ForensicReporter::render(incidents),
             human_report: NarrativeReporter::render(incidents),
             teaching_report: TeachingReporter::render(incidents),
+            care_report: CareReporter::render(incidents),
         }
     }
 }
 
 fn noticed_line(incident: &CorrelatedIncident) -> String {
+    let phantom_note = incident
+        .phantom_summary
+        .as_deref()
+        .map(|summary| format!(" Phantom-Scan stayed internally clear with {}.", summary))
+        .unwrap_or_default();
+
     format!(
-        "We saw {} behavior coming from {}. The main themes were {}.",
+        "We saw {} behavior coming from {}. The main themes were {}.{}",
         incident.severity.as_str(),
         incident.primary_source,
-        incident.families.join(", ")
+        incident.families.join(", "),
+        phantom_note
     )
 }
 
 fn action_line(incident: &CorrelatedIncident) -> String {
-    match incident.highest_stage.as_str() {
+    let base = match incident.highest_stage.as_str() {
         "observe" => {
             "Sentinel watched closely, kept evidence, and avoided unnecessary disruption.".to_string()
         }
@@ -128,7 +164,20 @@ fn action_line(incident: &CorrelatedIncident) -> String {
         _ => {
             "Sentinel paused and asked for human approval before doing anything more disruptive.".to_string()
         }
-    }
+    };
+
+    let stability = if incident.stability_priority {
+        " It followed a stability-first rule before taking stronger protective action."
+    } else {
+        ""
+    };
+    let phantom = incident
+        .phantom_summary
+        .as_deref()
+        .map(|summary| format!(" Phantom-Scan varied its observation rhythm within {}.", summary))
+        .unwrap_or_default();
+
+    format!("{base}{stability}{phantom}")
 }
 
 fn meaning_line(incident: &CorrelatedIncident) -> String {
@@ -137,15 +186,61 @@ fn meaning_line(incident: &CorrelatedIncident) -> String {
     } else if incident.families.iter().any(|family| family == "integrity-attack") {
         "This means something tried to change or hook a trusted component, so Sentinel shifted toward self-protection and recovery.".to_string()
     } else if incident.families.iter().any(|family| family == "offensive-scan") {
-        "This means someone was likely mapping the environment. Sentinel used that moment to watch carefully and reduce their certainty.".to_string()
+        "This means someone was likely mapping the environment. Sentinel used that moment to watch carefully, keep the system stable, and reduce the attacker's certainty.".to_string()
     } else {
-        "This is part of how Sentinel teaches while it protects: it explains the pattern, the response, and the safety tradeoff in plain language.".to_string()
+        "This is part of how Sentinel teaches while it protects: it explains the pattern, the response, and the safety tradeoff in plain language, with stability kept ahead of unnecessary disruption.".to_string()
+    }
+}
+
+fn status_line(incident: &CorrelatedIncident) -> String {
+    if let Some(voice) = incident.recovery_voice.as_deref() {
+        voice.to_string()
+    } else if incident.stability_priority {
+        "Sentinel kept the environment stable first and is continuing to watch carefully.".to_string()
+    } else {
+        "Sentinel is still monitoring the situation and keeping a clear record of what happened.".to_string()
+    }
+}
+
+fn guidance_line(incident: &CorrelatedIncident) -> String {
+    match incident.highest_stage.as_str() {
+        "observe" | "throttle" => {
+            "No immediate action is needed unless you want to review the detailed case file.".to_string()
+        }
+        "contain" => {
+            "Review the affected service when convenient, but Sentinel already applied bounded containment.".to_string()
+        }
+        "isolate" => {
+            "A stronger containment step was necessary. Check the affected host or workload before returning it to normal service.".to_string()
+        }
+        _ => {
+            "Sentinel is waiting for a human decision before taking anything more disruptive.".to_string()
+        }
+    }
+}
+
+fn comfort_line(incident: &CorrelatedIncident) -> String {
+    let mut parts = Vec::new();
+    if incident.stability_priority {
+        parts.push("stability was kept ahead of aggressive action".to_string());
+    }
+    if let Some(phantom) = incident.phantom_summary.as_deref() {
+        parts.push(format!("Phantom-Scan stayed bounded with {}", phantom));
+    }
+    if let Some(recovery) = incident.recovery_summary.as_deref() {
+        parts.push(format!("recovery plan {}", recovery));
+    }
+
+    if parts.is_empty() {
+        "Sentinel stayed calm, explainable, and evidence-driven.".to_string()
+    } else {
+        format!("Sentinel stayed calm because {}.", parts.join("; "))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{NarrativeReporter, ReporterEngine, TeachingReporter};
+    use super::{CareReporter, NarrativeReporter, ReporterEngine, TeachingReporter};
     use sentinel_correlation::{CorrelatedIncident, IncidentSeverity};
     use sentinel_common::MitigationStage;
 
@@ -158,6 +253,16 @@ mod tests {
             highest_stage: MitigationStage::Throttle,
             severity: IncidentSeverity::Medium,
             prevailing_posture: "decoy-first-capture".to_string(),
+            stability_priority: true,
+            phantom_summary: Some(
+                "bounded cadence_ms=90 jitter_ms=8 phase_offset_ms=13 burst_slots=2".to_string(),
+            ),
+            recovery_summary: Some(
+                "mode=fast-recovery stability_window_ms=500 restore=shadow-vault services=quick-sync decoys=resume-when-stable".to_string(),
+            ),
+            recovery_voice: Some(
+                "Sentinel is doing a quick recovery. Core services are being refreshed and the environment remains stable.".to_string(),
+            ),
             timeline: vec!["1. family=offensive-scan".to_string()],
             operator_summary: "source=203.0.113.88 severity=medium".to_string(),
             human_summary: "Source 203.0.113.88 looked like reconnaissance.".to_string(),
@@ -179,6 +284,7 @@ mod tests {
         assert!(bundle.forensic_report.contains("Forensic Report"));
         assert!(bundle.human_report.contains("Human Report"));
         assert!(bundle.teaching_report.contains("Teaching Report"));
+        assert!(bundle.care_report.contains("Care Report"));
     }
 
     #[test]
@@ -187,5 +293,16 @@ mod tests {
 
         assert!(report.contains("What we noticed:"));
         assert!(report.contains("What Sentinel did:"));
+        assert!(report.contains("stability-first"));
+        assert!(report.contains("Phantom-Scan varied its observation rhythm"));
+    }
+
+    #[test]
+    fn care_report_answers_action_question() {
+        let report = CareReporter::render(&[sample_incident()]);
+
+        assert!(report.contains("Do you need to act?"));
+        assert!(report.contains("No immediate action is needed"));
+        assert!(report.contains("quick recovery"));
     }
 }

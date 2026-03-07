@@ -1,17 +1,12 @@
 [package]
-name = "sentinel-correlation"
+name = "sentinel-decoy"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 sentinel-common = { path = "../sentinel-common" }
-sentinel-runtime = { path = "../sentinel-runtime" }
-sentinel-response = { path = "../sentinel-response" }
-
-[dev-dependencies]
 sentinel-config = { path = "../sentinel-config" }
-sentinel-telemetry = { path = "../sentinel-telemetry" }
 
 [lib]
 path = "src/lib.rs"

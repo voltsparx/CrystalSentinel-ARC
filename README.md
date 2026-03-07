@@ -23,6 +23,8 @@ the system should explain its decision to operators and researchers.
 - Contain threatening activity without destabilizing normal systems.
 - Produce logs, timelines, reasoning, and teaching that are useful to
   operators, learners, and researchers.
+- Speak with care for the person behind the screen by reducing panic,
+  explaining next steps, and separating calm guidance from raw forensic detail.
 
 ## Positioning
 
@@ -131,6 +133,8 @@ The protective rule is simple:
 
 ## Safety Principles
 
+- Stability first: the platform must preserve host, service, and network
+  stability before it escalates into stronger protection.
 - Passive first: observe before interfering whenever possible.
 - Harmless decoys only: synthetic fog and dummy scans must stay inert,
   bounded, and non-weaponizable.

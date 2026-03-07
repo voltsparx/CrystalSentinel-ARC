@@ -55,6 +55,38 @@ fn main() {
             decision.fast_path.overall_score
         );
         println!("awareness: {}", decision.awareness.summary);
+        if let Some(decoy) = &decision.decoy_plan {
+            println!(
+                "decoy: profile={} intensity={} cadence_ms={} ghost_slots={} primitives={}",
+                decoy.profile.as_str(),
+                decoy.intensity.as_str(),
+                decoy.cadence_ms,
+                decoy.ghost_slots,
+                decoy
+                    .primitives
+                    .iter()
+                    .map(|primitive| primitive.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            if let Some(phantom) = &decoy.phantom_observation {
+                println!(
+                    "phantom: cadence_ms={} jitter_ms={} phase_offset_ms={} burst_slots={}",
+                    phantom.cadence_ms,
+                    phantom.jitter_ms,
+                    phantom.phase_offset_ms,
+                    phantom.burst_slots
+                );
+            }
+        }
+        if let Some(recovery) = &decision.recovery_triage {
+            println!(
+                "recovery: mode={} stability_window_ms={} summary={}",
+                recovery.mode.as_str(),
+                recovery.stability_window_ms,
+                recovery.summary
+            );
+        }
         println!("actions: {}", actions);
         println!("plan: {}", decision.plan.narrative);
         if let Some(hint) = decision.teaching_hint {
@@ -78,6 +110,7 @@ fn main() {
                     println!("{}", reports.forensic_report);
                     println!("{}", reports.human_report);
                     println!("{}", reports.teaching_report);
+                    println!("{}", reports.care_report);
                 }
                 Err(reason) => {
                     println!("engine: reporters status=fault-isolated reason={reason}");

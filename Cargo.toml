@@ -8,6 +8,7 @@ members = [
   "crates/sentinel-telemetry",
   "crates/sentinel-flow",
   "crates/sentinel-detection",
+  "crates/sentinel-decoy",
   "crates/sentinel-education",
   "crates/sentinel-integrity",
   "crates/sentinel-native-bridge",

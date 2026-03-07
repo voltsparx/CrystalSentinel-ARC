@@ -35,10 +35,12 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
             how_it_works: &[
                 "It focuses on stealth observation and early signal collection.",
                 "It gives the system a pre-response intelligence window.",
+                "It can vary its observation rhythm inside bounded limits so the runtime does not expose one rigid cadence.",
                 "It feeds classification and timing evidence into later decisions.",
             ],
             safety_contract: &[
                 "Its defensive value comes from visibility, not harm.",
+                "Any observation cadence variance must remain internally truth-tagged and health-bounded.",
                 "It must not become an uncontrolled interference mechanism.",
             ],
         },
@@ -134,5 +136,13 @@ mod tests {
         let names: Vec<_> = harmless_scan_types().into_iter().map(|item| item.name).collect();
         assert!(!names.contains(&"SARS"));
     }
-}
 
+    #[test]
+    fn phantom_lesson_mentions_bounded_variance() {
+        let phantom = find_lesson("Phantom-Scan").expect("phantom lesson should exist");
+        assert!(phantom
+            .how_it_works
+            .iter()
+            .any(|item| item.contains("vary its observation rhythm")));
+    }
+}

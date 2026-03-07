@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+sentinel-common = { path = "../../crates/sentinel-common" }
+sentinel-config = { path = "../../crates/sentinel-config" }
+sentinel-decoy = { path = "../../crates/sentinel-decoy" }
 sentinel-detection = { path = "../../crates/sentinel-detection" }
 sentinel-education = { path = "../../crates/sentinel-education" }
 sentinel-native-bridge = { path = "../../crates/sentinel-native-bridge" }
