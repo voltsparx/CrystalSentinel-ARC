@@ -277,6 +277,24 @@ struct CoverageItem {
 fn coverage_matrix() -> &'static [CoverageItem] {
     &[
         CoverageItem {
+            capability: "autonomy-architecture-planner",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/the-guardian-system-arch.txt",
+                "self-assessments/compaitibility.txt",
+                "self-assessments/dynamic-recovery.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-autonomy",
+                "crates/sentinel-runtime",
+                "crates/sentinel-response",
+                "crates/sentinel-correlation",
+                "crates/sentinel-reporting",
+                "apps/sentineld",
+            ],
+            notes: "The runtime now chooses architecture patterns such as edge-guardian, balanced-mesh, fragile-mesh-guard, and pressure-shield to rebalance fast path, decoy limits, fault isolation, and stability headroom under pressure.",
+        },
+        CoverageItem {
             capability: "built-in-rule-profiles-and-compiler",
             status: "implemented",
             assessments: &[

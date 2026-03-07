@@ -4,6 +4,7 @@ Reusable Rust libraries live here.
 
 - `sentinel-common/`: shared types, errors, traits, and utilities
 - `sentinel-config/`: config loading, validation, and overrides
+- `sentinel-autonomy/`: runtime architecture planning, engine balance, fault isolation, and native work split selection
 - `sentinel-telemetry/`: packet, host, and service telemetry ingestion
 - `sentinel-flow/`: flow tracking and protocol session state
 - `sentinel-detection/`: signature, heuristic, and anomaly execution

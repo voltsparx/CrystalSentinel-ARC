@@ -58,6 +58,7 @@ rule-triggered blocking. Its intended design points are:
 - harmless defensive decoys that buy time for better classification
 - harmless reconnaissance-friction decoys that make high-speed scanning less reliable
 - multi-layer sensing from Rust, C++, C, and ASM support paths
+- runtime architecture patterns that rebalance packet lanes, classifier lanes, fault isolation, and decoy spread under pressure
 - multi-lane fusion across signature-style, classification-style, stateful, heuristic, decoy, bio-response, and ASM fast-path signals
 - built-in operator teaching instead of opaque automation
 - open-source reference material used to strengthen defensive coverage
@@ -123,6 +124,24 @@ system is healthy enough to defend again.
 This makes the lower layer a defensive last line, not a retaliation engine.
 Its intended job is to preserve system survival, buy classification time, and
 keep the protector stable under heavy pressure.
+
+## Runtime Architecture Patterns
+
+CrystalSentinel-CRA now carries a runtime architecture planner so the
+protector can stay autonomous without becoming unstable or wasteful.
+
+- `edge-guardian`: balanced single-node protection for normal deployment
+- `balanced-mesh`: wider distribution across multiple protected systems
+- `fragile-mesh-guard`: extra headroom and gentler decoy limits for fragile environments
+- `pressure-shield`: heavier fast-path and classifier emphasis during scan or intrusion pressure
+
+These patterns do not just rename modes. They change:
+
+- packet, classifier, correlation, and reporting lane budgets
+- fault-isolation strictness
+- how much headroom is reserved for stability
+- how far harmless decoys are allowed to spread
+- how much work is pushed toward Rust, C, C++, and ASM paths
 
 ## Situation Awareness and Bio-Response
 
