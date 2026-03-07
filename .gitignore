@@ -1,1 +1,41 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# Rust and native builds
+target/
+**/target/
+build/
+dist/
+out/
+
+# Python tooling
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Logs and runtime artifacts
+*.log
+*.pid
+*.stackdump
+
+# Capture and generated analysis artifacts
+artifacts/
+coverage/
+reports/
+
+# Local-only configuration
+.env
+.env.*
+!.env.example
+*.local.toml
+*.local.yaml
+*.local.yml
+*.local.json
+
+# Self Assessments and related artifacts
 self-assessments/
