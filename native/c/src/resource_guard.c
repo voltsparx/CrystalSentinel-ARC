@@ -2,6 +2,10 @@
 
 #include <string.h>
 
+static int contains(const char *haystack, const char *needle) {
+  return haystack != 0 && needle != 0 && strstr(haystack, needle) != 0;
+}
+
 sentinel_native_result sentinel_c_resource_guard(const sentinel_native_event *event) {
   sentinel_native_result result;
   result.layer = "c";
@@ -14,14 +18,17 @@ sentinel_native_result sentinel_c_resource_guard(const sentinel_native_event *ev
     return result;
   }
 
-  if (strstr(event->summary, "burst_flood") != 0) {
+  if (contains(event->summary, "burst_flood")) {
     result.decision = "throttle";
     result.adjusted_confidence = 95;
-  } else if (strstr(event->summary, "stage_loader") != 0) {
+  } else if (contains(event->summary, "stage_loader")) {
     result.decision = "contain";
     result.adjusted_confidence = 88;
+  } else if (contains(event->summary, "legacy") || contains(event->summary, "medical") ||
+             contains(event->summary, "plc")) {
+    result.decision = "stability-cap";
+    result.adjusted_confidence = 82;
   }
 
   return result;
 }
-

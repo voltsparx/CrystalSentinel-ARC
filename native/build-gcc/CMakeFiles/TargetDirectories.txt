@@ -1,0 +1,4 @@
+C:/Users/volts/OneDrive/Documents/GitHub/DeepShield/native/build-gcc/CMakeFiles/sentinel-native-c.dir
+C:/Users/volts/OneDrive/Documents/GitHub/DeepShield/native/build-gcc/CMakeFiles/sentinel-native-cpp.dir
+C:/Users/volts/OneDrive/Documents/GitHub/DeepShield/native/build-gcc/CMakeFiles/edit_cache.dir
+C:/Users/volts/OneDrive/Documents/GitHub/DeepShield/native/build-gcc/CMakeFiles/rebuild_cache.dir

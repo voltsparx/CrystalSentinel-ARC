@@ -28,6 +28,16 @@ extern "C" sentinel_native_result sentinel_cpp_classify(const sentinel_native_ev
   } else if (contains(event->summary, "dns_tunnel")) {
     result.decision = "dns-tunnel";
     result.adjusted_confidence = 92;
+  } else if (contains(event->summary, "nmap") ||
+             contains(event->summary, "service_probe") ||
+             contains(event->summary, "version_scan")) {
+    result.decision = "service-fingerprint-scan";
+    result.adjusted_confidence = 86;
+  } else if (contains(event->summary, "masscan") ||
+             contains(event->summary, "async_scan") ||
+             contains(event->summary, "wide_port_sweep")) {
+    result.decision = "high-speed-asynchronous-scan";
+    result.adjusted_confidence = 95;
   } else if (contains(event->summary, "stage_loader")) {
     result.decision = "payload-stager";
     result.adjusted_confidence = 88;
@@ -35,4 +45,3 @@ extern "C" sentinel_native_result sentinel_cpp_classify(const sentinel_native_ev
 
   return result;
 }
-

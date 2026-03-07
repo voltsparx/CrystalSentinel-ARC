@@ -212,7 +212,7 @@ fn action_line(incident: &CorrelatedIncident) -> String {
         .as_deref()
         .map(|summary| {
             format!(
-                " Phantom-Scan varied its observation rhythm within {}.",
+                " Phantom-Scan opened a bounded evidence window and varied its observation rhythm within {}.",
                 summary
             )
         })
@@ -428,7 +428,7 @@ mod tests {
         assert!(report.contains("What we noticed:"));
         assert!(report.contains("What Sentinel did:"));
         assert!(report.contains("stability-first"));
-        assert!(report.contains("Phantom-Scan varied its observation rhythm"));
+        assert!(report.contains("Phantom-Scan opened a bounded evidence window"));
     }
 
     #[test]

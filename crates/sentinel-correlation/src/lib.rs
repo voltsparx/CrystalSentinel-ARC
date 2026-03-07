@@ -121,11 +121,15 @@ fn correlate_bucket(
             phantom_summary = decision.decoy_plan.as_ref().and_then(|plan| {
                 plan.phantom_observation.as_ref().map(|phantom| {
                     format!(
-                        "bounded cadence_ms={} jitter_ms={} phase_offset_ms={} burst_slots={}",
+                        "bounded cadence_ms={} jitter_ms={} phase_offset_ms={} burst_slots={} decision_window_ms={} sample_budget={} goal={} sars_snapshot={}",
                         phantom.cadence_ms,
                         phantom.jitter_ms,
                         phantom.phase_offset_ms,
-                        phantom.burst_slots
+                        phantom.burst_slots,
+                        phantom.decision_window_ms,
+                        phantom.sample_budget,
+                        phantom.evidence_goal.as_str(),
+                        phantom.requires_sars_snapshot
                     )
                 })
             });

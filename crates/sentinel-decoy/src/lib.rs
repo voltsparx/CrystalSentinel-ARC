@@ -55,12 +55,35 @@ impl DecoyIntensity {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhantomEvidenceGoal {
+    ScanFingerprint,
+    PressureMapping,
+    StageFingerprint,
+    UnknownTriage,
+}
+
+impl PhantomEvidenceGoal {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ScanFingerprint => "scan-fingerprint",
+            Self::PressureMapping => "pressure-mapping",
+            Self::StageFingerprint => "stage-fingerprint",
+            Self::UnknownTriage => "unknown-triage",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PhantomObservationPlan {
     pub cadence_ms: u32,
     pub jitter_ms: u32,
     pub phase_offset_ms: u32,
     pub burst_slots: u8,
+    pub decision_window_ms: u16,
+    pub sample_budget: u8,
+    pub evidence_goal: PhantomEvidenceGoal,
+    pub requires_sars_snapshot: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,13 +114,13 @@ impl DecoyGovernor {
         }
 
         if matches!(
-            signal.family,
+            &signal.family,
             AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack
         ) {
             return None;
         }
 
-        let mut primitives = primitives_for(signal.family.clone());
+        let mut primitives = primitives_for(signal);
         if primitives.is_empty() {
             return None;
         }
@@ -115,7 +138,7 @@ impl DecoyGovernor {
         let jitter_ms = bounded(seed.rotate_left(11), 4, 32);
         let mut ghost_slots = bounded(seed.rotate_left(23), 2, 16) as u16;
         let persona_variants = bounded(seed.rotate_left(31), 2, 7) as u8;
-        let phantom_observation = phantom_observation_for(&primitives, intensity, seed);
+        let phantom_observation = phantom_observation_for(signal, &primitives, intensity, seed);
 
         if matches!(config.launch_profile, LaunchProfile::Protector) {
             ghost_slots = ghost_slots.min(6);
@@ -139,8 +162,15 @@ impl DecoyGovernor {
                 .as_ref()
                 .map(|plan| {
                     format!(
-                        "cadence_ms:{} jitter_ms:{} phase_offset_ms:{} burst_slots:{}",
-                        plan.cadence_ms, plan.jitter_ms, plan.phase_offset_ms, plan.burst_slots
+                        "cadence_ms:{} jitter_ms:{} phase_offset_ms:{} burst_slots:{} decision_window_ms:{} sample_budget:{} goal:{} sars_snapshot:{}",
+                        plan.cadence_ms,
+                        plan.jitter_ms,
+                        plan.phase_offset_ms,
+                        plan.burst_slots,
+                        plan.decision_window_ms,
+                        plan.sample_budget,
+                        plan.evidence_goal.as_str(),
+                        plan.requires_sars_snapshot
                     )
                 })
                 .unwrap_or_else(|| "disabled".to_string()),
@@ -256,8 +286,8 @@ pub fn find_decoy_identity(key: &str) -> Option<DecoyIdentity> {
     })
 }
 
-fn primitives_for(family: AttackFamily) -> Vec<DecoyPrimitive> {
-    match family {
+fn primitives_for(signal: &ThreatSignal) -> Vec<DecoyPrimitive> {
+    match &signal.family {
         AttackFamily::OffensiveScan => vec![
             DecoyPrimitive::AmbientMist,
             DecoyPrimitive::IdfWindow,
@@ -275,11 +305,26 @@ fn primitives_for(family: AttackFamily) -> Vec<DecoyPrimitive> {
             DecoyPrimitive::CadenceRandomizer,
             DecoyPrimitive::PhantomRhythmRandomizer,
         ],
-        AttackFamily::DnsTunneling | AttackFamily::ApiScraping | AttackFamily::Unknown => {
-            vec![
+        AttackFamily::DnsTunneling | AttackFamily::ApiScraping => vec![
+            DecoyPrimitive::AmbientMist,
+            DecoyPrimitive::CadenceRandomizer,
+        ],
+        AttackFamily::Unknown => {
+            let mut primitives = vec![
                 DecoyPrimitive::AmbientMist,
                 DecoyPrimitive::CadenceRandomizer,
-            ]
+            ];
+
+            if signal.confidence >= 60 {
+                primitives.push(DecoyPrimitive::IdfWindow);
+                primitives.push(DecoyPrimitive::PhantomRhythmRandomizer);
+            }
+
+            if signal.detail.contains("fast_path.kind=offensive-scan") {
+                primitives.push(DecoyPrimitive::ReconFrictionVeil);
+            }
+
+            primitives
         }
         _ => Vec::new(),
     }
@@ -324,6 +369,7 @@ fn cadence_for(profile: LaunchProfile, intensity: DecoyIntensity, seed: u64) -> 
 }
 
 fn phantom_observation_for(
+    signal: &ThreatSignal,
     primitives: &[DecoyPrimitive],
     intensity: DecoyIntensity,
     seed: u64,
@@ -335,10 +381,43 @@ fn phantom_observation_for(
         return None;
     }
 
-    let (cadence_min, cadence_max, burst_min, burst_max) = match intensity {
-        DecoyIntensity::Minimal => (120, 260, 1, 2),
-        DecoyIntensity::Gentle => (80, 180, 2, 3),
-        DecoyIntensity::Focused => (40, 120, 3, 5),
+    let (
+        cadence_min,
+        cadence_max,
+        burst_min,
+        burst_max,
+        window_min,
+        window_max,
+        sample_min,
+        sample_max,
+    ) = match intensity {
+        DecoyIntensity::Minimal => (120, 260, 1, 2, 180, 320, 2, 3),
+        DecoyIntensity::Gentle => (80, 180, 2, 3, 140, 260, 3, 5),
+        DecoyIntensity::Focused => (40, 120, 3, 5, 110, 220, 4, 6),
+    };
+
+    let evidence_goal = match &signal.family {
+        AttackFamily::OffensiveScan => PhantomEvidenceGoal::ScanFingerprint,
+        AttackFamily::PayloadStager
+        | AttackFamily::ExploitDelivery
+        | AttackFamily::Beaconing
+        | AttackFamily::RemoteAccessTrojan => PhantomEvidenceGoal::StageFingerprint,
+        AttackFamily::Unknown => PhantomEvidenceGoal::UnknownTriage,
+        _ => PhantomEvidenceGoal::PressureMapping,
+    };
+
+    let decision_window_ms = match evidence_goal {
+        PhantomEvidenceGoal::UnknownTriage => {
+            bounded(seed.rotate_left(41), window_min + 40, window_max + 90)
+        }
+        _ => bounded(seed.rotate_left(41), window_min, window_max),
+    };
+
+    let sample_budget = match evidence_goal {
+        PhantomEvidenceGoal::UnknownTriage => {
+            bounded(seed.rotate_left(47), sample_min + 1, sample_max + 1)
+        }
+        _ => bounded(seed.rotate_left(47), sample_min, sample_max),
     };
 
     Some(PhantomObservationPlan {
@@ -346,6 +425,13 @@ fn phantom_observation_for(
         jitter_ms: bounded(seed.rotate_left(17), 3, 24),
         phase_offset_ms: bounded(seed.rotate_left(27), 1, 48),
         burst_slots: bounded(seed.rotate_left(37), burst_min, burst_max) as u8,
+        decision_window_ms: decision_window_ms as u16,
+        sample_budget: sample_budget as u8,
+        evidence_goal,
+        requires_sars_snapshot: matches!(
+            &signal.family,
+            AttackFamily::OffensiveScan | AttackFamily::Unknown | AttackFamily::ApiScraping
+        ),
     })
 }
 
@@ -371,6 +457,7 @@ fn stable_seed(parts: &[&str]) -> u64 {
 mod tests {
     use super::{
         decoy_identity_catalog, find_decoy_identity, DecoyGovernor, DecoyIntensity, DecoyPrimitive,
+        PhantomEvidenceGoal,
     };
     use sentinel_common::{AttackFamily, HealthSnapshot, ThreatSignal};
     use sentinel_config::{LaunchProfile, RuntimeConfig};
@@ -401,6 +488,13 @@ mod tests {
             .primitives
             .contains(&DecoyPrimitive::PhantomRhythmRandomizer));
         assert!(plan.phantom_observation.is_some());
+        assert_eq!(
+            plan.phantom_observation
+                .as_ref()
+                .expect("phantom observation should exist")
+                .evidence_goal,
+            PhantomEvidenceGoal::ScanFingerprint
+        );
     }
 
     #[test]
@@ -448,6 +542,34 @@ mod tests {
                 .burst_slots,
             2
         );
+    }
+
+    #[test]
+    fn unknown_pressure_can_open_phantom_evidence_ladder() {
+        let config = RuntimeConfig::default();
+        let signal = ThreatSignal {
+            family: AttackFamily::Unknown,
+            confidence: 72,
+            detail: "Signal catalog did not find a strong family match. fast_path.kind=offensive-scan stage=throttle score=72 scan=72 intrusion=0 integrity=0 ddos=0 tick=7".to_string(),
+            ..base_signal()
+        };
+
+        let plan = DecoyGovernor::plan(&config, &signal, &HealthSnapshot::default())
+            .expect("plan should exist");
+
+        assert!(plan.primitives.contains(&DecoyPrimitive::IdfWindow));
+        assert!(plan
+            .primitives
+            .contains(&DecoyPrimitive::PhantomRhythmRandomizer));
+        assert!(plan.primitives.contains(&DecoyPrimitive::ReconFrictionVeil));
+
+        let phantom = plan
+            .phantom_observation
+            .as_ref()
+            .expect("phantom observation should exist");
+        assert_eq!(phantom.evidence_goal, PhantomEvidenceGoal::UnknownTriage);
+        assert!(phantom.requires_sars_snapshot);
+        assert!(phantom.decision_window_ms >= 220);
     }
 
     #[test]

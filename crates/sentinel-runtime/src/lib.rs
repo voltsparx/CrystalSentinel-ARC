@@ -333,10 +333,19 @@ fn select_posture(
         FastThreatKind::DdosPressure | FastThreatKind::IntegrityPressure
     ) {
         RuntimePosture::ProtectiveIsolation
-    } else if matches!(assessment.signal.family, AttackFamily::OffensiveScan)
-        || (matches!(assessment.signal.family, AttackFamily::Unknown)
-            && matches!(fast_path.kind, FastThreatKind::OffensiveScan)
-            && assessment.signal.confidence >= 60)
+    } else if matches!(
+        assessment.signal.family,
+        AttackFamily::OffensiveScan
+            | AttackFamily::PayloadStager
+            | AttackFamily::ExploitDelivery
+            | AttackFamily::Beaconing
+            | AttackFamily::RemoteAccessTrojan
+    ) || (matches!(assessment.signal.family, AttackFamily::Unknown)
+        && matches!(
+            fast_path.kind,
+            FastThreatKind::OffensiveScan | FastThreatKind::Intrusion
+        )
+        && assessment.signal.confidence >= 60)
     {
         if awareness.automation_limited {
             RuntimePosture::BaselineObserve
@@ -388,7 +397,12 @@ fn adapt_plan(
         }
         RuntimePosture::DecoyFirstCapture => {
             push_unique(&mut plan.actions, ResponseAction::TriggerIdfWindow);
+            push_unique(
+                &mut plan.actions,
+                ResponseAction::OpenRapidAreaObservationWindow,
+            );
             push_unique(&mut plan.actions, ResponseAction::FocusPhantomObservation);
+            push_unique(&mut plan.actions, ResponseAction::SampleAmbientResonance);
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
                 "Decoy-first capture posture opened a bounded IDF/Phantom window. {} awareness={}",
@@ -521,15 +535,34 @@ fn teaching_hint_for(
     }
 
     match posture {
+        RuntimePosture::DecoyFirstCapture
+            if matches!(
+                assessment.signal.family,
+                AttackFamily::OffensiveScan
+                    | AttackFamily::Unknown
+                    | AttackFamily::ApiScraping
+                    | AttackFamily::VolumetricFlood
+            ) =>
+        {
+            find_lesson("SARS")
+                .map(|lesson| lesson.summary)
+                .or_else(|| find_lesson("IDF Scan").map(|lesson| lesson.summary))
+        }
         RuntimePosture::DecoyFirstCapture => find_lesson("IDF Scan").map(|lesson| lesson.summary),
         RuntimePosture::ProtectiveIsolation | RuntimePosture::BoundedContainment => {
-            find_lesson("SARS").map(|lesson| lesson.summary)
+            find_lesson("SHKE").map(|lesson| lesson.summary)
         }
         RuntimePosture::DefensiveHibernation => find_lesson("SHKE").map(|lesson| lesson.summary),
         RuntimePosture::BaselineObserve
-            if matches!(assessment.signal.family, AttackFamily::OffensiveScan) =>
+            if matches!(
+                assessment.signal.family,
+                AttackFamily::OffensiveScan
+                    | AttackFamily::Unknown
+                    | AttackFamily::ApiScraping
+                    | AttackFamily::VolumetricFlood
+            ) =>
         {
-            find_lesson("Phantom-Scan").map(|lesson| lesson.summary)
+            find_lesson("SARS").map(|lesson| lesson.summary)
         }
         _ => None,
     }
@@ -634,6 +667,14 @@ mod tests {
             .plan
             .actions
             .contains(&ResponseAction::FocusPhantomObservation));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::OpenRapidAreaObservationWindow));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::SampleAmbientResonance));
         assert!(decision
             .decoy_plan
             .as_ref()
@@ -770,5 +811,30 @@ mod tests {
             .plan
             .actions
             .contains(&ResponseAction::ResumeServicesGradually));
+    }
+
+    #[test]
+    fn payload_stager_can_use_decoy_first_capture() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig::default();
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "198.51.100.77".to_string(),
+            summary: "meterpreter tlv unknown_probe".to_string(),
+            health: HealthSnapshot::default(),
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(decision.posture, RuntimePosture::DecoyFirstCapture);
+        assert!(decision.decoy_plan.is_some());
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::OpenRapidAreaObservationWindow));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::SampleAmbientResonance));
     }
 }

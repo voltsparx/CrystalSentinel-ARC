@@ -48,9 +48,10 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
             name: "KIS",
             classification: "timing-intelligence",
             harmless: true,
-            summary: "KIS uses timing and jitter as additional intelligence signals for classifying suspicious behavior.",
+            summary: "KIS measures timing friction and pressure so CrystalSentinel-CRA can understand how hard a connection or attacker is pushing against the environment.",
             how_it_works: &[
                 "It studies packet pacing, variance, and behavioral friction.",
+                "It helps estimate pressure on the path, device, or service under observation.",
                 "It helps distinguish automation from ambient traffic.",
                 "It enriches confidence scoring rather than acting alone.",
             ],
@@ -76,6 +77,22 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
             ],
         },
         ScanTypeLesson {
+            name: "Callback-Ping",
+            classification: "reverse-probe-research",
+            harmless: false,
+            summary: "Callback-Ping is a reverse-probe research concept that studies how a suspicious origin reacts when the defender opens a tightly bounded callback window.",
+            how_it_works: &[
+                "It begins from an incoming suspicious probe and asks whether a controlled callback reveals more about the source behavior.",
+                "It tries to distinguish ordinary stack behavior, scripted automation, and hardened silent-drop behavior from the reaction pattern.",
+                "In the current framework it is treated as a teaching and planning concept, not as a live covert packet-emission engine.",
+            ],
+            safety_contract: &[
+                "Callback-Ping is not a harmless default primitive and is not part of the active decoy runtime today.",
+                "Any future implementation would need strict ownership boundaries, bounded rate and scope, and clear operator visibility.",
+                "It must not become a stealth emitter, a covert off-stack action path, or an unreviewed packet crafting engine.",
+            ],
+        },
+        ScanTypeLesson {
             name: "Recon Friction Veil",
             classification: "high-speed-recon-friction",
             harmless: true,
@@ -92,17 +109,17 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
         },
         ScanTypeLesson {
             name: "SARS",
-            classification: "adaptive-response-layer",
-            harmless: false,
-            summary: "SARS is the adaptive response layer that turns classification into bounded containment decisions.",
+            classification: "ambient-resonance-status-scan",
+            harmless: true,
+            summary: "SARS is the ambient network status monitor. It watches device and network ambience so spikes can reveal throttling, abnormal load, or hidden pressure in the environment.",
             how_it_works: &[
-                "It consumes confidence, health, and context signals.",
-                "It chooses staged containment actions instead of one blunt response.",
-                "It gives the runtime a controlled way to escalate when needed.",
+                "It tracks the baseline feel of the network and the devices behind it.",
+                "It watches for resonance spikes, drag, or sudden ambient pressure changes.",
+                "It helps CrystalSentinel-CRA tell when something is throttling or squeezing the network even before the cause is fully classified.",
             ],
             safety_contract: &[
-                "SARS is not a harmless scan type; it is a response system.",
-                "Every action must remain bounded, explainable, and reversible where possible.",
+                "SARS is a monitor, not an intervention engine.",
+                "Its value is ambient visibility and early pressure awareness, not destructive action.",
             ],
         },
         ScanTypeLesson {
@@ -147,12 +164,12 @@ mod tests {
     }
 
     #[test]
-    fn harmless_catalog_excludes_sars() {
+    fn harmless_catalog_includes_sars() {
         let names: Vec<_> = harmless_scan_types()
             .into_iter()
             .map(|item| item.name)
             .collect();
-        assert!(!names.contains(&"SARS"));
+        assert!(names.contains(&"SARS"));
     }
 
     #[test]
@@ -169,5 +186,15 @@ mod tests {
         let lesson =
             find_lesson("Recon Friction Veil").expect("recon friction lesson should exist");
         assert!(lesson.harmless);
+    }
+
+    #[test]
+    fn callback_ping_is_research_only() {
+        let lesson = find_lesson("Callback-Ping").expect("callback lesson should exist");
+        assert!(!lesson.harmless);
+        assert!(lesson
+            .safety_contract
+            .iter()
+            .any(|item| item.contains("not part of the active decoy runtime")));
     }
 }

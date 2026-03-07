@@ -164,7 +164,7 @@ impl SourceInventory {
     pub fn current() -> Self {
         Self {
             offensive_frameworks: vec!["AndroRAT", "metasploit-payloads", "TheFatRat"],
-            security_systems: vec!["snort3", "suricata"],
+            security_systems: vec!["snort3", "suricata", "zeek"],
         }
     }
 }

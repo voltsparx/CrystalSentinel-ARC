@@ -1,0 +1,7 @@
+# ninja log v7
+75	981	7946165210463762	CMakeFiles/sentinel-native-c.dir/c/src/resource_guard.c.obj	7726ce212932d233
+108	1014	7946165210799731	CMakeFiles/sentinel-native-cpp.dir/cpp/src/classifier.cpp.obj	47d2c6efeb1239bf
+125	1036	7946165210970988	CMakeFiles/sentinel-native-cpp.dir/cpp/src/scan_predictor.cpp.obj	fe60f23e0b560df0
+93	1060	7946165210654436	CMakeFiles/sentinel-native-c.dir/c/src/budget_guard.c.obj	ce326de4cafa13d7
+1037	2518	7946165220088111	libsentinel-native-cpp.a	aba175b20e15ba89
+1061	2524	7946165220325373	libsentinel-native-c.a	eba94f134486e736

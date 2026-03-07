@@ -49,15 +49,15 @@ pub fn native_layer_manifest() -> Vec<NativeLayerSpec> {
         NativeLayerSpec {
             language: NativeLanguage::C,
             library: "sentinel-native-c",
-            responsibility: "Resource guards, descriptor-safe compatibility shims, and OS-facing packet helpers.",
-            entrypoint: "sentinel_c_resource_guard",
+            responsibility: "Resource guards, stability-first observation budgeting, descriptor-safe compatibility shims, and OS-facing packet helpers.",
+            entrypoint: "sentinel_c_resource_guard / sentinel_c_budget_window",
             status: NativeLayerStatus::Scaffolded,
         },
         NativeLayerSpec {
             language: NativeLanguage::Cpp,
             library: "sentinel-native-cpp",
-            responsibility: "Stateful classifiers, behavioral models, and attack-template modeling.",
-            entrypoint: "sentinel_cpp_classify",
+            responsibility: "Stateful classifiers, scan-path prediction, behavioral models, and attack-template modeling.",
+            entrypoint: "sentinel_cpp_classify / sentinel_cpp_predict_scan_path",
             status: NativeLayerStatus::Scaffolded,
         },
         NativeLayerSpec {

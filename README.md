@@ -1,13 +1,15 @@
 # CrystalSentinel-CRA
 
-CrystalSentinel-CRA is an autonomous defensive platform focused on real-time
-detection, prevention, containment, investigation, and explanation of hostile
-activity across modern networks and endpoints.
+CrystalSentinel-CRA is a research-driven defensive architecture and prototype
+direction focused on real-time detection, prevention, containment,
+investigation, and explanation of hostile activity across modern networks and
+endpoints.
 
 It is not positioned as only an IDPS and not positioned as only a learning
-framework. It is meant to operate as a full-scale protector that can sense the
-earliest meaningful echo of hostile behavior, make fast health-aware decisions,
-apply bounded defensive action, and then teach operators exactly how and why it
+framework. This repository is best read as a design, reverse-engineering, and
+prototype program toward a full-scale protector that can sense the earliest
+meaningful echo of hostile behavior, make fast health-aware decisions, apply
+bounded defensive action, and then teach operators exactly how and why it
 acted.
 
 The project starts from attack scenarios: what an attacker is trying to do,
@@ -18,7 +20,7 @@ the system should explain its decision to operators and researchers.
 ## Project Intent
 
 - Detect hostile behavior on the earliest meaningful echo.
-- Use decoy-first information collection to buy decision time.
+- Use decoy-first Phantom evidence collection to buy decision time.
 - Prevent attacker progress when confidence is high.
 - Contain threatening activity without destabilizing normal systems.
 - Produce logs, timelines, reasoning, and teaching that are useful to
@@ -49,18 +51,19 @@ Allowed containment actions:
 
 ## What Makes It Different
 
-CrystalSentinel-CRA is built around behavior-driven defense rather than only
-rule-triggered blocking. Its distinctive design points are:
+CrystalSentinel-CRA is designed around behavior-driven defense rather than only
+rule-triggered blocking. Its intended design points are:
 
-- new defensive scan concepts such as TBNS, Phantom-Scan, KIS, and IDF Scan
+- new defensive scan concepts such as TBNS, Phantom-Scan, KIS, SARS, IDF Scan, and Callback-Ping research
 - harmless defensive decoys that buy time for better classification
+- harmless reconnaissance-friction decoys that make high-speed scanning less reliable
 - multi-layer sensing from Rust, C++, C, and ASM support paths
 - built-in operator teaching instead of opaque automation
 - open-source reference material used to strengthen defensive coverage
 
 ## Decoy-First Capture Loop
 
-One of the core ideas in CrystalSentinel-CRA is the decoy-first information
+One of the core ideas in the CrystalSentinel-CRA design is the decoy-first information
 collection method.
 
 Instead of waiting for a threat to fully arrive before reacting, the platform
@@ -68,10 +71,15 @@ can use a bounded defensive decoy such as IDF Scan to create a short flare
 window. During that window:
 
 1. inert decoy pressure is released in a harmless and controlled way
-2. Phantom-Scan and fast-path telemetry collect reaction behavior
+2. Phantom-Scan and fast-path telemetry open a bounded evidence ladder and collect reaction behavior
 3. KIS and other intelligence layers correlate timing, flow, and protocol clues
-4. the policy layer makes a faster containment decision
-5. the system explains what it saw and why it acted
+4. SARS watches ambient network resonance so hidden throttling or pressure spikes become visible
+5. the policy layer makes a faster containment decision
+6. the system explains what it saw and why it acted
+
+For high-speed scan pressure, the same loop can add harmless reconnaissance
+friction so automated tools spend more retries and lose confidence before they
+can trust what they are seeing.
 
 This is meant to push defensive power further without crossing into offensive
 behavior. The purpose is to force exposure, accelerate classification, and
@@ -79,15 +87,16 @@ improve early containment.
 
 ## Defensive Nervous System
 
-CrystalSentinel-CRA treats the defense stack as a layered nervous system rather
+CrystalSentinel-CRA treats the defense stack as a layered nervous-system model rather
 than a single detector.
 
-- Rust is the executive layer that applies policy, explanation, and bounded
-  autonomous action.
-- C++ and C support the stateful classifier and packet-adjacent system paths.
-- ASM is the lowest-latency sensing and fast-path decision layer. It acts as a
-  defensive nervous system for timing-critical pressure signals such as
-  offensive scans, intrusion bursts, and DDoS pressure.
+- Rust is intended to be the executive layer that applies policy, explanation,
+  and bounded autonomous action.
+- C++ is intended to predict scan behavior and classification paths while C
+  caps budgets and protects fragile assets.
+- ASM is intended to be the lowest-latency sensing and fast-path decision
+  layer for timing-critical pressure signals such as offensive scans,
+  intrusion bursts, and DDoS pressure.
 - The native fast path can grow toward bounded zero-copy or direct-to-wire
   defensive paths, but only under the same stability-first and safety-aware
   controls as the rest of the platform.
@@ -95,15 +104,15 @@ than a single detector.
 When pressure becomes severe, the system is designed to respond in this order:
 
 1. detect the earliest meaningful echo or drift
-2. collect additional signal through fast-path telemetry and decoy-first capture
+2. collect additional signal through fast-path telemetry and decoy-first Phantom capture
 3. classify the pressure as reconnaissance, intrusion, saturation, or unknown
 4. cap action based on real-time host health and policy safety limits
 5. isolate or cut off the source only if continued contact risks damaging the
    protected system or overwhelming the defensive runtime
 
 This makes the lower layer a defensive last line, not a retaliation engine.
-Its job is to preserve system survival, buy classification time, and keep the
-protector stable under heavy pressure.
+Its intended job is to preserve system survival, buy classification time, and
+keep the protector stable under heavy pressure.
 
 ## Situation Awareness and Bio-Response
 
@@ -192,6 +201,14 @@ concrete engineering meaning.
   fragile, latency-sensitive, or safety-critical.
 - IDF Scan: Inert Decoy Fog Scan, a harmless defensive decoy that creates a
   short-lived flare window for additional observation.
+- Callback-Ping: a reverse-probe research concept for studying suspicious
+  source reactions through a tightly bounded callback window. It is not part of
+  the active harmless decoy runtime.
+- KIS: Kinetic Impedance System, a timing and pressure signal that helps the
+  runtime understand how hard the path, service, or attacker is pushing.
+- SARS: Synthetic Ambient Resonance Scan, a harmless ambient monitor that
+  watches device and network resonance for spikes that suggest throttling,
+  congestion, or hidden pressure.
 - Decoy-First Capture Loop: a defensive sequence in which harmless decoy
   pressure buys enough time to observe reaction behavior and decide faster.
 - Self-Integrity Monitoring: runtime checks that detect tamper, instability,
@@ -201,13 +218,13 @@ concrete engineering meaning.
 
 ## Repository Layout
 
-The repository now uses an enterprise-style monorepo structure with separate
-areas for runtime applications, reusable Rust crates, detection content,
-operational material, and validation assets.
+The repository uses an enterprise-style monorepo layout as the target
+architecture for runtime applications, reusable Rust crates, detection
+content, operational material, and validation assets.
 
 See `docs/architecture/REPOSITORY-STRUCTURE.md` for the full layout.
 See `docs/implementation/V1-COVERAGE.md` for the current v1.0
-implemented-versus-future comparison against the self-assessments.
+design-and-prototype comparison against the self-assessments.
 
 ## System Outline
 
