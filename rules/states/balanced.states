@@ -1,0 +1,5 @@
+# Balanced profile is the default profile.
+isolate traffic-002
+isolate scan-001
+isolate channel-002
+isolate channel-003

@@ -1,0 +1,46 @@
+[profiles.minimum]
+traffic_decoder_guard = true
+scan_detection = true
+phantom_capture = true
+sars_ambient_monitor = true
+kis_pressure_monitor = true
+idf_decoy_fog = false
+spot_mimicry = false
+callback_ping = false
+data_egress_guard = true
+fragile_asset_guard = true
+self_integrity_guard = true
+
+[profiles.balanced]
+traffic_decoder_guard = true
+scan_detection = true
+phantom_capture = true
+sars_ambient_monitor = true
+kis_pressure_monitor = true
+idf_decoy_fog = true
+spot_mimicry = true
+callback_ping = false
+data_egress_guard = true
+fragile_asset_guard = true
+self_integrity_guard = true
+reverse_channel_guard = true
+staged_delivery_guard = true
+
+[profiles.high_guard]
+traffic_decoder_guard = true
+scan_detection = true
+phantom_capture = true
+sars_ambient_monitor = true
+kis_pressure_monitor = true
+idf_decoy_fog = true
+spot_mimicry = true
+callback_ping = false
+data_egress_guard = true
+fragile_asset_guard = true
+self_integrity_guard = true
+reverse_channel_guard = true
+staged_delivery_guard = true
+recon_friction_veil = true
+ambient_mist = true
+multi_host_mesh_guard = true
+zen_recovery = true

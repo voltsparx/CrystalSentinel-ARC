@@ -1,0 +1,26 @@
+[[rules]]
+id = "traffic-001"
+name = "dns-tunnel-high-entropy"
+family = "dns-tunneling"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags high-entropy DNS or tunneling indicators."
+indicators = ["dns_tunnel", "high_entropy", "encoded", "tunnel"]
+
+[[rules]]
+id = "traffic-002"
+name = "burst-flood-pressure"
+family = "volumetric-flood"
+recommended_stage = "isolate"
+severity = "critical"
+summary = "Flags burst or saturation pressure that threatens service stability."
+indicators = ["burst_flood", "ddos", "pps_spike", "flood"]
+
+[[rules]]
+id = "traffic-003"
+name = "sensitive-data-egress"
+family = "data-exfiltration"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags outbound content that resembles sensitive data leaving the environment."
+indicators = ["credit_card", "us_social", "http_client_body", "file_data"]

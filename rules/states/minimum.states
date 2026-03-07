@@ -1,0 +1,6 @@
+# Minimum profile keeps the rule pack conservative for fragile or very small deployments.
+disable traffic-003
+disable scan-002
+disable channel-004
+isolate traffic-002
+isolate channel-003

@@ -1,0 +1,16 @@
+[Unit]
+Description=CrystalSentinel-CRA Runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sentineld
+Restart=on-failure
+RestartSec=5
+WorkingDirectory=/usr/local/var/lib/crystalsentinel
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

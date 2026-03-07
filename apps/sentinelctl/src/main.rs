@@ -5,6 +5,9 @@ use sentinel_decoy::DecoyGovernor;
 use sentinel_detection::{seed_framework_catalog, seed_intel_sources, seed_pattern_identities};
 use sentinel_education::{find_lesson, harmless_scan_types, learning_catalog};
 use sentinel_native_bridge::native_layer_manifest;
+use sentinel_rules::{
+    available_profiles, load_rule_pack, rule_language_summary, write_compiled_rule_pack,
+};
 use sentinel_scenario::seed_scenarios;
 
 fn main() {
@@ -64,6 +67,11 @@ fn main() {
                 family: sentinel_common::AttackFamily::OffensiveScan,
                 confidence: 84,
                 recognition: None,
+                analysis_lanes: vec![
+                    "asm-fast-path".to_string(),
+                    "heuristic".to_string(),
+                    "recon-model".to_string(),
+                ],
                 detail: summary,
             };
 
@@ -122,6 +130,76 @@ fn main() {
                 );
             }
         }
+        "install-layout" => {
+            println!("linux -> prefix=/usr/local config=/usr/local/etc/crystalsentinel rules=/usr/local/etc/crystalsentinel/rules logs=/usr/local/var/log/crystalsentinel state=/usr/local/var/lib/crystalsentinel");
+            println!("macos -> prefix=/usr/local config=/usr/local/etc/crystalsentinel rules=/usr/local/etc/crystalsentinel/rules logs=/usr/local/var/log/crystalsentinel state=/usr/local/var/lib/crystalsentinel");
+            println!("windows -> program_files=%ProgramFiles%\\CrystalSentinel-CRA program_data=%ProgramData%\\CrystalSentinel-CRA config=%ProgramData%\\CrystalSentinel-CRA\\etc rules=%ProgramData%\\CrystalSentinel-CRA\\etc\\rules");
+        }
+        "rule-profiles" => match available_profiles(&repo_root()) {
+            Ok(profiles) => {
+                for profile in profiles {
+                    println!("{}", profile);
+                }
+            }
+            Err(err) => eprintln!("{}", err),
+        },
+        "rule-pack" => {
+            let profile = std::env::args().nth(2);
+            match load_rule_pack(&repo_root(), profile.as_deref()) {
+                Ok(pack) => {
+                    println!(
+                        "profile={} total_rules={} enabled_rules={} isolated_rules={} heuristics={} thresholds={} asset_classes={}",
+                        pack.profile,
+                        pack.total_rules,
+                        pack.enabled_rules,
+                        pack.isolated_rules,
+                        pack.heuristics.len(),
+                        pack.thresholds.len(),
+                        pack.asset_classes.len()
+                    );
+                    if let Some(policy) = &pack.response_policy {
+                        println!(
+                            "policy={} default_max_stage={} zen_recovery_stage={}",
+                            policy.policy.name,
+                            policy.policy.default_max_stage,
+                            policy.policy.zen_recovery_stage
+                        );
+                    }
+                    for rule in pack.rules.iter().filter(|rule| rule.enabled) {
+                        println!(
+                            "rule {} stage={} severity={} family={} name={}",
+                            rule.id,
+                            rule.stage_override
+                                .as_deref()
+                                .unwrap_or(rule.stage.as_str()),
+                            rule.severity,
+                            rule.family,
+                            rule.name
+                        );
+                    }
+                }
+                Err(err) => eprintln!("{}", err),
+            }
+        }
+        "rule-build" => {
+            let profile = std::env::args().nth(2);
+            let output = std::env::args()
+                .nth(3)
+                .unwrap_or_else(|| "rules/compiled/crystalsentinel.rules".to_string());
+            match write_compiled_rule_pack(
+                &repo_root(),
+                profile.as_deref(),
+                std::path::Path::new(&output),
+            ) {
+                Ok(()) => println!("wrote {}", output),
+                Err(err) => eprintln!("{}", err),
+            }
+        }
+        "rule-language" => {
+            for line in rule_language_summary() {
+                println!("{}", line);
+            }
+        }
         "coverage" => {
             for item in coverage_matrix() {
                 println!(
@@ -156,7 +234,19 @@ fn main() {
             }
         }
         _ => {
-            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|coverage|teach|safe-scans]");
+            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|install-layout|rule-profiles|rule-pack|rule-build|rule-language|coverage|teach|safe-scans]");
+        }
+    }
+}
+
+fn repo_root() -> std::path::PathBuf {
+    let mut current = std::env::current_dir().expect("current dir");
+    loop {
+        if current.join("rules").join("manifest.toml").exists() {
+            return current;
+        }
+        if !current.pop() {
+            return std::env::current_dir().expect("current dir");
         }
     }
 }
@@ -186,6 +276,22 @@ struct CoverageItem {
 
 fn coverage_matrix() -> &'static [CoverageItem] {
     &[
+        CoverageItem {
+            capability: "built-in-rule-profiles-and-compiler",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/reverse-engineering-frameworks.txt",
+                "self-assessments/deployment-script.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-rules",
+                "rules",
+                "configs/base/install-layout.toml",
+                "scripts/bootstrap",
+                "apps/sentinelctl",
+            ],
+            notes: "The framework now uses a small built-in TOML rule language, local state profiles, and one local compile target instead of a large external rule scripting workflow.",
+        },
         CoverageItem {
             capability: "autonomous-runtime-loop",
             status: "implemented",

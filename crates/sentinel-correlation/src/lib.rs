@@ -34,6 +34,8 @@ pub struct CorrelatedIncident {
     pub recognitions: Vec<String>,
     pub recognition_labels: Vec<String>,
     pub recognition_protocols: Vec<String>,
+    pub analysis_lanes: Vec<String>,
+    pub lane_concurrence: usize,
     pub highest_stage: MitigationStage,
     pub severity: IncidentSeverity,
     pub prevailing_posture: String,
@@ -76,6 +78,7 @@ fn correlate_bucket(
     let mut recognitions = Vec::new();
     let mut recognition_labels = Vec::new();
     let mut recognition_protocols = Vec::new();
+    let mut analysis_lanes = Vec::new();
     let mut highest_stage = MitigationStage::Observe;
     let mut max_confidence = 0u8;
     let mut prevailing_posture = "baseline-observe".to_string();
@@ -89,6 +92,11 @@ fn correlate_bucket(
         let family = decision.assessment.signal.family.as_str().to_string();
         if !families.contains(&family) {
             families.push(family);
+        }
+        for lane in &decision.assessment.signal.analysis_lanes {
+            if !analysis_lanes.contains(lane) {
+                analysis_lanes.push(lane.clone());
+            }
         }
         if let Some(recognition) = &decision.assessment.signal.recognition {
             if !recognitions.contains(&recognition.display_name) {
@@ -116,6 +124,31 @@ fn correlate_bucket(
             .plan
             .actions
             .contains(&ResponseAction::PreserveServiceContinuity);
+        if decision.decoy_plan.is_some()
+            && !analysis_lanes.iter().any(|lane| lane == "decoy-control")
+        {
+            analysis_lanes.push("decoy-control".to_string());
+        }
+        if decision.integrity_assessment.is_some()
+            && !analysis_lanes.iter().any(|lane| lane == "self-integrity")
+        {
+            analysis_lanes.push("self-integrity".to_string());
+        }
+        if decision.recovery_triage.is_some()
+            && !analysis_lanes
+                .iter()
+                .any(|lane| lane == "recovery-planning")
+        {
+            analysis_lanes.push("recovery-planning".to_string());
+        }
+        if stability_priority && !analysis_lanes.iter().any(|lane| lane == "bio-response") {
+            analysis_lanes.push("bio-response".to_string());
+        }
+        if decision.posture.as_str() == "zen-recovery"
+            && !analysis_lanes.iter().any(|lane| lane == "asm-zen-guard")
+        {
+            analysis_lanes.push("asm-zen-guard".to_string());
+        }
 
         if phantom_summary.is_none() {
             phantom_summary = decision.decoy_plan.as_ref().and_then(|plan| {
@@ -156,7 +189,7 @@ fn correlate_bucket(
             .join(", ");
 
         timeline.push(format!(
-            "{}. family={} recognized={} labels={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
+            "{}. family={} recognized={} labels={} lanes={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
             event_index + 1,
             decision.assessment.signal.family.as_str(),
             decision
@@ -173,6 +206,11 @@ fn correlate_bucket(
                 .as_ref()
                 .map(|recognition| recognition.labels.join(","))
                 .unwrap_or_else(|| "none".to_string()),
+            if decision.assessment.signal.analysis_lanes.is_empty() {
+                "none".to_string()
+            } else {
+                decision.assessment.signal.analysis_lanes.join(",")
+            },
             decision.posture.as_str(),
             decision.assessment.stage.as_str(),
             decision.fast_path.kind.as_str(),
@@ -188,12 +226,14 @@ fn correlate_bucket(
     }
 
     let severity = severity_for(highest_stage, max_confidence);
+    let lane_concurrence = analysis_lanes.len();
     let family_list = families.join(", ");
     let human_summary = human_summary_for(
         &source,
         &family_list,
         recognitions.as_slice(),
         recognition_labels.as_slice(),
+        analysis_lanes.as_slice(),
         prevailing_posture.as_str(),
         highest_stage,
         stability_priority,
@@ -201,7 +241,7 @@ fn correlate_bucket(
         recovery_voice.as_deref(),
     );
     let operator_summary = format!(
-        "source={} severity={} stage={} posture={} stability_first={} families={} recognized={} labels={} protocols={} phantom={} recovery={} timeline_events={}",
+        "source={} severity={} stage={} posture={} stability_first={} families={} recognized={} labels={} protocols={} lanes={} lane_concurrence={} phantom={} recovery={} timeline_events={}",
         source,
         severity.as_str(),
         highest_stage.as_str(),
@@ -223,6 +263,12 @@ fn correlate_bucket(
         } else {
             recognition_protocols.join(", ")
         },
+        if analysis_lanes.is_empty() {
+            "none".to_string()
+        } else {
+            analysis_lanes.join(", ")
+        },
+        lane_concurrence,
         phantom_summary.as_deref().unwrap_or("none"),
         recovery_summary.as_deref().unwrap_or("none"),
         timeline.len()
@@ -236,6 +282,8 @@ fn correlate_bucket(
         recognitions,
         recognition_labels,
         recognition_protocols,
+        analysis_lanes,
+        lane_concurrence,
         highest_stage,
         severity,
         prevailing_posture,
@@ -269,6 +317,7 @@ fn human_summary_for(
     families: &str,
     recognitions: &[String],
     recognition_labels: &[String],
+    analysis_lanes: &[String],
     posture: &str,
     stage: MitigationStage,
     stability_priority: bool,
@@ -289,6 +338,14 @@ fn human_summary_for(
     } else {
         ""
     };
+    let fusion_line = if analysis_lanes.len() >= 3 {
+        format!(
+            " Multiple defense lanes agreed before Sentinel moved: {}.",
+            analysis_lanes.join(", ")
+        )
+    } else {
+        String::new()
+    };
     let phantom_line = phantom_summary
         .map(|summary| format!(" Phantom-Scan stayed active with {}.", summary))
         .unwrap_or_default();
@@ -297,7 +354,7 @@ fn human_summary_for(
         .unwrap_or_default();
 
     format!(
-        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{phantom_line}{recovery_line}",
+        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{fusion_line}{phantom_line}{recovery_line}",
         stage = stage.as_str()
     )
 }

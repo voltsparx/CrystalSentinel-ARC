@@ -10,6 +10,7 @@ Thumbs.db
 target/
 **/target/
 build/
+native/build-*/
 dist/
 out/
 .cargo-target-local/

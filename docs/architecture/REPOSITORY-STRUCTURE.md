@@ -160,12 +160,14 @@ binary or one unreadable folder.
 ## Native Layer Boundaries
 
 - `native/c/` is reserved for resource guards, packet-adjacent system helpers,
-  descriptor-safe compatibility shims, and other OS-facing primitives.
+  descriptor-safe compatibility shims, exposure reduction helpers, and other
+  OS-facing primitives, including protocol and multi-node safety caps.
 - `native/cpp/` is reserved for stateful classifiers, attack-template models,
-  and richer behavioral correlation paths where C++ modeling is useful.
+  ambient-state models, and richer behavioral correlation paths where C++
+  modeling is useful, including behavior matrices and recovery predictors.
 - `native/asm/` is reserved for timing primitives and ultra-low-latency
-  fast-path helpers, with future room for bounded zero-copy defensive
-  packet paths.
+  fast-path helpers, weighted pressure kernels, health-aware zen fallback
+  decisions, and future room for bounded zero-copy defensive packet paths.
 - `native/include/` contains shared headers for native components.
 
 The native layers are part of the intended layered defense strategy. In v1.0,

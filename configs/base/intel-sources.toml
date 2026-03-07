@@ -1,10 +1,11 @@
 offensive_frameworks = [
-  "AndroRAT",
-  "metasploit-payloads",
-  "TheFatRat",
+  "reference-mobile-rat",
+  "reference-staged-transport",
+  "reference-payload-wrapper",
 ]
 
 security_systems = [
-  "snort3",
+  "reference-signature-engine",
+  "reference-classification-engine",
+  "reference-stateful-network-monitor",
 ]
-

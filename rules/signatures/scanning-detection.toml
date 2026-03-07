@@ -1,0 +1,33 @@
+[[rules]]
+id = "scan-001"
+name = "high-speed-asynchronous-recon"
+family = "offensive-scan"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags high-speed asynchronous reconnaissance and broad stateless sweeps."
+indicators = [
+  "masscan",
+  "async_scan",
+  "asynchronous_sweep",
+  "stateless_syn",
+  "wide_port_sweep",
+  "pps_scan",
+]
+
+[[rules]]
+id = "scan-002"
+name = "service-fingerprint-recon"
+family = "offensive-scan"
+recommended_stage = "throttle"
+severity = "medium"
+summary = "Flags service or version-fingerprinting reconnaissance."
+indicators = ["nmap", "service_probe", "version_scan", "banner_grab", "os_fingerprint"]
+
+[[rules]]
+id = "scan-003"
+name = "credential-probing-over-ssh"
+family = "identity-abuse"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags SSH password guessing and repeated auth failures."
+indicators = ["password_guessing", "ssh.login.failure", "ssh_auth_failed", "successful_login"]

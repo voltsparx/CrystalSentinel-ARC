@@ -1,0 +1,23 @@
+[[classes]]
+name = "medical"
+passive_only = true
+max_decoy_intensity = "minimal"
+preferred_posture = "baseline-observe"
+
+[[classes]]
+name = "industrial"
+passive_only = true
+max_decoy_intensity = "minimal"
+preferred_posture = "baseline-observe"
+
+[[classes]]
+name = "legacy"
+passive_only = false
+max_decoy_intensity = "gentle"
+preferred_posture = "decoy-first-capture"
+
+[[classes]]
+name = "iot"
+passive_only = false
+max_decoy_intensity = "gentle"
+preferred_posture = "decoy-first-capture"

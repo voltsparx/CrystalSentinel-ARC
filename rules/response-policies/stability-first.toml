@@ -1,0 +1,13 @@
+[policy]
+name = "stability-first"
+default_max_stage = "isolate"
+fragile_asset_max_stage = "throttle"
+integrity_critical_stage = "observe"
+zen_recovery_stage = "throttle"
+
+[transitions]
+scan_pressure = "throttle"
+staged_delivery = "contain"
+interactive_reverse_shell = "contain"
+volumetric_flood = "isolate"
+integrity_pressure = "isolate"

@@ -79,6 +79,15 @@ impl ForensicReporter {
                 }
             ));
             sections.push(format!(
+                "lanes={} lane_concurrence={}",
+                if incident.analysis_lanes.is_empty() {
+                    "none".to_string()
+                } else {
+                    incident.analysis_lanes.join(", ")
+                },
+                incident.lane_concurrence
+            ));
+            sections.push(format!(
                 "phantom={}",
                 incident.phantom_summary.as_deref().unwrap_or("none")
             ));
@@ -167,6 +176,14 @@ fn noticed_line(incident: &CorrelatedIncident) -> String {
             incident.recognition_labels.join(", ")
         )
     };
+    let lane_note = if incident.lane_concurrence >= 3 {
+        format!(
+            " Multiple defense lanes agreed: {}.",
+            incident.analysis_lanes.join(", ")
+        )
+    } else {
+        String::new()
+    };
     let phantom_note = incident
         .phantom_summary
         .as_deref()
@@ -174,17 +191,21 @@ fn noticed_line(incident: &CorrelatedIncident) -> String {
         .unwrap_or_default();
 
     format!(
-        "We saw {} behavior coming from {}. The main themes were {}.{}{}",
+        "We saw {} behavior coming from {}. The main themes were {}.{}{}{}",
         incident.severity.as_str(),
         incident.primary_source,
         incident.families.join(", "),
         recognition_note,
+        lane_note,
         phantom_note
     )
 }
 
 fn action_line(incident: &CorrelatedIncident) -> String {
-    let base = match incident.highest_stage.as_str() {
+    let base = if incident.prevailing_posture == "zen-recovery" {
+        "Sentinel entered a low-resource zen recovery mode, reduced exposure, and kept only the minimum defensive activity needed to protect the system while it healed.".to_string()
+    } else {
+        match incident.highest_stage.as_str() {
         "observe" => {
             "Sentinel watched closely, kept evidence, and avoided unnecessary disruption.".to_string()
         }
@@ -200,6 +221,7 @@ fn action_line(incident: &CorrelatedIncident) -> String {
         _ => {
             "Sentinel paused and asked for human approval before doing anything more disruptive.".to_string()
         }
+    }
     };
 
     let stability = if incident.stability_priority {
@@ -226,8 +248,13 @@ fn action_line(incident: &CorrelatedIncident) -> String {
     } else {
         ""
     };
+    let fusion = if incident.lane_concurrence >= 4 {
+        " Multiple defense lanes agreed before the response was escalated."
+    } else {
+        ""
+    };
 
-    format!("{base}{stability}{phantom}{scan_friction}")
+    format!("{base}{stability}{phantom}{scan_friction}{fusion}")
 }
 
 fn meaning_line(incident: &CorrelatedIncident) -> String {
@@ -237,6 +264,12 @@ fn meaning_line(incident: &CorrelatedIncident) -> String {
         .any(|label| label == "high_speed_scan" || label == "asynchronous_sweep")
     {
         "This looked like a high-speed asynchronous scan. Sentinel treated it as reconnaissance pressure, used harmless scan friction to reduce certainty, and collected more evidence instead of trying to damage the scanner.".to_string()
+    } else if incident
+        .recognition_labels
+        .iter()
+        .any(|label| label == "reverse_shell" || label == "interactive_shell")
+    {
+        "This looked like an interactive reverse-shell channel. Sentinel treated it as live remote-access behavior, kept the response bounded, and preserved evidence for deeper review.".to_string()
     } else if incident
         .recognition_labels
         .iter()
@@ -268,6 +301,12 @@ fn meaning_line(incident: &CorrelatedIncident) -> String {
     {
         "This looked like staged payload delivery, so Sentinel treated it as the start of a larger chain rather than a harmless one-off event.".to_string()
     } else if incident
+        .recognition_labels
+        .iter()
+        .any(|label| label == "sql_injection" || label == "uri_sqli")
+    {
+        "This looked like application-layer injection behavior, so Sentinel treated it as exploit delivery rather than normal web traffic.".to_string()
+    } else if incident
         .families
         .iter()
         .any(|family| family == "data-exfiltration")
@@ -293,6 +332,9 @@ fn meaning_line(incident: &CorrelatedIncident) -> String {
 fn status_line(incident: &CorrelatedIncident) -> String {
     if let Some(voice) = incident.recovery_voice.as_deref() {
         voice.to_string()
+    } else if incident.prevailing_posture == "zen-recovery" {
+        "Sentinel is in a quiet low-resource protection mode so the defended system can regain stability."
+            .to_string()
     } else if incident.stability_priority {
         "Sentinel kept the environment stable first and is continuing to watch carefully."
             .to_string()
@@ -349,6 +391,12 @@ fn comfort_line(incident: &CorrelatedIncident) -> String {
     if incident.stability_priority {
         parts.push("stability was kept ahead of aggressive action".to_string());
     }
+    if incident.lane_concurrence >= 3 {
+        parts.push(format!(
+            "multiple defense lanes agreed: {}",
+            incident.analysis_lanes.join(", ")
+        ));
+    }
     if !incident.recognitions.is_empty() {
         parts.push(format!(
             "the threat was identified as {}",
@@ -381,9 +429,17 @@ mod tests {
             primary_source: "203.0.113.88".to_string(),
             sources: vec!["203.0.113.88".to_string()],
             families: vec!["offensive-scan".to_string()],
-            recognitions: vec!["Meterpreter Reverse HTTPS Transport".to_string()],
+            recognitions: vec!["Reverse HTTPS Transport Pattern".to_string()],
             recognition_labels: vec!["stager".to_string(), "reverse_https".to_string()],
             recognition_protocols: vec!["https".to_string()],
+            analysis_lanes: vec![
+                "asm-fast-path".to_string(),
+                "transport-intelligence".to_string(),
+                "heuristic".to_string(),
+                "decoy-control".to_string(),
+                "bio-response".to_string(),
+            ],
+            lane_concurrence: 5,
             highest_stage: MitigationStage::Throttle,
             severity: IncidentSeverity::Medium,
             prevailing_posture: "decoy-first-capture".to_string(),

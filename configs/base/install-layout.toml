@@ -1,0 +1,34 @@
+[product]
+name = "CrystalSentinel-CRA"
+service_name = "crystalsentinel"
+
+[linux]
+prefix = "/usr/local"
+bin_dir = "bin"
+lib_dir = "lib"
+config_dir = "etc/crystalsentinel"
+rules_dir = "etc/crystalsentinel/rules"
+logs_dir = "var/log/crystalsentinel"
+state_dir = "var/lib/crystalsentinel"
+run_dir = "var/run/crystalsentinel"
+
+[macos]
+prefix = "/usr/local"
+bin_dir = "bin"
+lib_dir = "lib"
+config_dir = "etc/crystalsentinel"
+rules_dir = "etc/crystalsentinel/rules"
+logs_dir = "var/log/crystalsentinel"
+state_dir = "var/lib/crystalsentinel"
+run_dir = "var/run/crystalsentinel"
+
+[windows]
+program_files_dir = "C:\\Program Files\\CrystalSentinel-CRA"
+program_data_dir = "C:\\ProgramData\\CrystalSentinel-CRA"
+bin_dir = "bin"
+lib_dir = "lib"
+config_dir = "etc"
+rules_dir = "etc\\rules"
+logs_dir = "logs"
+state_dir = "state"
+run_dir = "run"

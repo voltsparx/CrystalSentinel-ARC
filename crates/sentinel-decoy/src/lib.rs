@@ -468,6 +468,7 @@ mod tests {
             family: AttackFamily::OffensiveScan,
             confidence: 84,
             recognition: None,
+            analysis_lanes: vec!["asm-fast-path".to_string(), "recon-model".to_string()],
             detail: "syn probe recon fingerprint".to_string(),
         }
     }

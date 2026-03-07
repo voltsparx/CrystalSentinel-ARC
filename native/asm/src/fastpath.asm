@@ -1,10 +1,10 @@
-; CrystalSentinel-CRA ASM scaffold
-; This is a placeholder for future timing primitives and fast-path helpers.
+; CrystalSentinel-CRA ASM timing primitive
 
 global sentinel_asm_cycle_stamp
 
 section .text
 sentinel_asm_cycle_stamp:
-    xor rax, rax
+    rdtsc
+    shl rdx, 32
+    or rax, rdx
     ret
-

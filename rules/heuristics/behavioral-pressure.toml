@@ -1,0 +1,20 @@
+[heuristics.scan_capture]
+minimum_confidence = 72
+phantom_required = true
+idf_window_allowed = true
+ambient_resonance_required = true
+summary = "Use decoy-first Phantom capture on suspicious scan pressure before stronger action."
+
+[heuristics.staged_intrusion]
+minimum_confidence = 82
+phantom_required = true
+idf_window_allowed = true
+ambient_resonance_required = true
+summary = "Use bounded capture for staged delivery unless fragile-device protection forces gentler handling."
+
+[heuristics.fragile_assets]
+minimum_confidence = 0
+phantom_required = false
+idf_window_allowed = false
+ambient_resonance_required = true
+summary = "Reduce decoy intensity and preserve only minimum observation on fragile systems."

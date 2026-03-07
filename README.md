@@ -58,6 +58,7 @@ rule-triggered blocking. Its intended design points are:
 - harmless defensive decoys that buy time for better classification
 - harmless reconnaissance-friction decoys that make high-speed scanning less reliable
 - multi-layer sensing from Rust, C++, C, and ASM support paths
+- multi-lane fusion across signature-style, classification-style, stateful, heuristic, decoy, bio-response, and ASM fast-path signals
 - built-in operator teaching instead of opaque automation
 - open-source reference material used to strengthen defensive coverage
 
@@ -93,10 +94,14 @@ than a single detector.
 - Rust is intended to be the executive layer that applies policy, explanation,
   and bounded autonomous action.
 - C++ is intended to predict scan behavior and classification paths while C
-  caps budgets and protects fragile assets.
+  models behavior and recovery paths while C caps budgets, protocol pressure,
+  mesh action spread, and fragile assets.
 - ASM is intended to be the lowest-latency sensing and fast-path decision
   layer for timing-critical pressure signals such as offensive scans,
   intrusion bursts, and DDoS pressure.
+- The ASM layer is intended to choose between fast decoy capture,
+  containment-guard behavior, and a low-resource zen recovery mode when the
+  defended host is too stressed to keep spending resources on heavier defense.
 - The native fast path can grow toward bounded zero-copy or direct-to-wire
   defensive paths, but only under the same stability-first and safety-aware
   controls as the rest of the platform.
@@ -109,6 +114,11 @@ When pressure becomes severe, the system is designed to respond in this order:
 4. cap action based on real-time host health and policy safety limits
 5. isolate or cut off the source only if continued contact risks damaging the
    protected system or overwhelming the defensive runtime
+
+When the defended system itself is under heavy resource or thermal stress, the
+same lower layer should be able to reduce exposure, pause non-essential decoy
+activity, keep only minimum observation alive, and return to standby once the
+system is healthy enough to defend again.
 
 This makes the lower layer a defensive last line, not a retaliation engine.
 Its intended job is to preserve system survival, buy classification time, and
@@ -217,6 +227,34 @@ concrete engineering meaning.
   rollback rules.
 
 ## Repository Layout
+
+## Install and Rule Layout
+
+CrystalSentinel-CRA now follows a prefix-based install layout so the runtime,
+config, and rules can be staged consistently across Linux, macOS, and Windows.
+
+- Linux and macOS use `${prefix}/etc/crystalsentinel` for config and
+  `${prefix}/etc/crystalsentinel/rules` for rule content.
+- Windows uses `%ProgramData%\\CrystalSentinel-CRA\\etc` for config and
+  `%ProgramData%\\CrystalSentinel-CRA\\etc\\rules` for rule content.
+- Platform installers live under `scripts/bootstrap/`.
+- Service templates live under `deploy/systemd/`, `deploy/launchd/`, and
+  `deploy/windows-service/`.
+
+The initial rule pack is CrystalSentinel-native and defense-only. It is
+organized for:
+
+- traffic pressure and tunneling
+- scanning and fingerprinting detection
+- staged delivery and reverse-channel detection
+- exfiltration indicators
+- fragile-device baselines
+- stability-first response policy
+
+The rule language is intentionally small. CrystalSentinel-CRA uses readable
+TOML rule files plus local profile state files instead of a large external
+rule scripting language. The goal is to keep authoring, review, deployment,
+and incident response simpler without weakening defensive control.
 
 The repository uses an enterprise-style monorepo layout as the target
 architecture for runtime applications, reusable Rust crates, detection

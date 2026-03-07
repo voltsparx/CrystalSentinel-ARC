@@ -8,13 +8,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SENTINEL_ENABLE_ASM "Enable assembly fast-path primitives" OFF)
 
-add_library(sentinel-native-c STATIC c/src/resource_guard.c c/src/budget_guard.c)
+add_library(
+  sentinel-native-c STATIC
+  c/src/resource_guard.c
+  c/src/budget_guard.c
+  c/src/exposure_guard.c
+  c/src/protocol_budget.c
+  c/src/mesh_guard.c
+)
 target_include_directories(sentinel-native-c PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_library(sentinel-native-cpp STATIC cpp/src/classifier.cpp cpp/src/scan_predictor.cpp)
+add_library(
+  sentinel-native-cpp STATIC
+  cpp/src/classifier.cpp
+  cpp/src/scan_predictor.cpp
+  cpp/src/ambient_state.cpp
+  cpp/src/behavior_matrix.cpp
+  cpp/src/recovery_predictor.cpp
+)
 target_include_directories(sentinel-native-cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(SENTINEL_ENABLE_ASM)
   enable_language(ASM_NASM)
-  add_library(sentinel-native-asm STATIC asm/src/fastpath.asm)
+  add_library(
+    sentinel-native-asm STATIC
+    asm/src/fastpath.asm
+    asm/src/pressure_mix.asm
+    asm/src/directive.asm
+  )
 endif()

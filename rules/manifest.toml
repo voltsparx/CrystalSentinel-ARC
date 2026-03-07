@@ -1,0 +1,13 @@
+version = 1
+default_profile = "balanced"
+
+include = [
+  "signatures/traffic-detection.toml",
+  "signatures/scanning-detection.toml",
+  "signatures/channel-detection.toml",
+  "heuristics/behavioral-pressure.toml",
+  "anomaly/network-pressure.toml",
+  "baselines/fragile-assets.toml",
+  "response-policies/stability-first.toml",
+  "allowlists/default.toml",
+]

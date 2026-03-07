@@ -1,0 +1,8 @@
+# High-guard profile keeps all built-in signatures active and pushes more of them into isolate posture.
+isolate traffic-001
+isolate traffic-002
+isolate scan-001
+isolate scan-003
+isolate channel-001
+isolate channel-002
+isolate channel-003

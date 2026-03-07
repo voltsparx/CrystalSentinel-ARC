@@ -2,8 +2,14 @@
 
 Project automation lives here.
 
-- `bootstrap/`: workstation and repo setup
+- `bootstrap/`: workstation, install-layout, and repo setup
 - `ci/`: validation and packaging automation
 - `dev/`: developer convenience commands
 - `ops/`: operational and maintenance scripts
 
+Current bootstrap scripts include platform-specific installers that stage:
+
+- binaries under the install prefix
+- configuration under `etc/crystalsentinel`
+- defensive rule packs under `etc/crystalsentinel/rules`
+- state, log, and run directories for the runtime

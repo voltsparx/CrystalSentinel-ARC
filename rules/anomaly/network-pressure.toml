@@ -1,0 +1,17 @@
+[thresholds.nominal]
+scan_pressure = 35
+intrusion_pressure = 40
+ddos_pressure = 45
+entropy_pressure = 35
+
+[thresholds.elevated]
+scan_pressure = 65
+intrusion_pressure = 70
+ddos_pressure = 75
+entropy_pressure = 60
+
+[thresholds.critical]
+scan_pressure = 85
+intrusion_pressure = 88
+ddos_pressure = 90
+entropy_pressure = 82

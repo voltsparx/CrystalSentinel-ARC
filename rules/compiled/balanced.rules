@@ -1,0 +1,45 @@
+# CrystalSentinel-CRA compiled rule pack
+profile = balanced
+manifest = C:\Users\volts\OneDrive\Documents\GitHub\DeepShield\rules\manifest.toml
+state_file = C:\Users\volts\OneDrive\Documents\GitHub\DeepShield\rules\states\balanced.states
+summary = total:10 enabled:10 isolated:4
+
+rule channel-001 stage=contain family=payload-stager severity=high indicators=stage_loader,reflective_loader,memory_loader,reflective_payload,pivot_stage_data summary=Flags staged delivery, loader, and reflective chain indicators.
+rule channel-002 stage=isolate family=payload-stager severity=high indicators=reverse_http,reverse_https,custom_headers,uuid,tlv summary=Flags staged reverse channels over HTTP or HTTPS.
+rule channel-003 stage=isolate family=remote-access-trojan severity=critical indicators=reverse_shell,shell_reverse_tcp,interactive_shell,session_spawn,cmd_channel summary=Flags interactive reverse shell or live command-channel behavior.
+rule channel-004 stage=contain family=remote-access-trojan severity=high indicators=camerapreview,audiomanager,locationmanager,videorecorder,readsms,readcalllogs summary=Flags surveillance-oriented mobile control or collection behavior.
+rule scan-001 stage=isolate family=offensive-scan severity=high indicators=masscan,async_scan,asynchronous_sweep,stateless_syn,wide_port_sweep,pps_scan summary=Flags high-speed asynchronous reconnaissance and broad stateless sweeps.
+rule scan-002 stage=throttle family=offensive-scan severity=medium indicators=nmap,service_probe,version_scan,banner_grab,os_fingerprint summary=Flags service or version-fingerprinting reconnaissance.
+rule scan-003 stage=contain family=identity-abuse severity=high indicators=password_guessing,ssh.login.failure,ssh_auth_failed,successful_login summary=Flags SSH password guessing and repeated auth failures.
+rule traffic-001 stage=contain family=dns-tunneling severity=high indicators=dns_tunnel,high_entropy,encoded,tunnel summary=Flags high-entropy DNS or tunneling indicators.
+rule traffic-002 stage=isolate family=volumetric-flood severity=critical indicators=burst_flood,ddos,pps_spike,flood summary=Flags burst or saturation pressure that threatens service stability.
+rule traffic-003 stage=contain family=data-exfiltration severity=high indicators=credit_card,us_social,http_client_body,file_data summary=Flags outbound content that resembles sensitive data leaving the environment.
+
+# heuristics
+heuristic fragile_assets min_confidence=0 phantom=false idf_window=false ambient_resonance=true summary=Reduce decoy intensity and preserve only minimum observation on fragile systems.
+heuristic scan_capture min_confidence=72 phantom=true idf_window=true ambient_resonance=true summary=Use decoy-first Phantom capture on suspicious scan pressure before stronger action.
+heuristic staged_intrusion min_confidence=82 phantom=true idf_window=true ambient_resonance=true summary=Use bounded capture for staged delivery unless fragile-device protection forces gentler handling.
+
+# anomaly thresholds
+threshold critical scan=85 intrusion=88 ddos=90 entropy=82
+threshold elevated scan=65 intrusion=70 ddos=75 entropy=60
+threshold nominal scan=35 intrusion=40 ddos=45 entropy=35
+
+# fragile asset classes
+asset_class medical passive_only=true max_decoy_intensity=minimal preferred_posture=baseline-observe
+asset_class industrial passive_only=true max_decoy_intensity=minimal preferred_posture=baseline-observe
+asset_class legacy passive_only=false max_decoy_intensity=gentle preferred_posture=decoy-first-capture
+asset_class iot passive_only=false max_decoy_intensity=gentle preferred_posture=decoy-first-capture
+
+# response policy
+policy stability-first default_max_stage=isolate fragile_asset_max_stage=throttle integrity_critical_stage=observe zen_recovery_stage=throttle
+transition integrity_pressure=isolate
+transition interactive_reverse_shell=contain
+transition scan_pressure=throttle
+transition staged_delivery=contain
+transition volumetric_flood=isolate
+
+# allowlists
+allowlist suppressed_sources=
+allowlist suppressed_labels=
+allowlist suppressed_identities=

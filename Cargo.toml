@@ -18,6 +18,7 @@ members = [
   "crates/sentinel-shadow-vault",
   "crates/sentinel-policy",
   "crates/sentinel-response",
+  "crates/sentinel-rules",
   "crates/sentinel-forensics",
   "crates/sentinel-storage",
   "crates/sentinel-bio-response",

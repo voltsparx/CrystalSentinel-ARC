@@ -54,6 +54,15 @@ fn main() {
             decision.fast_path.kind.as_str(),
             decision.fast_path.overall_score
         );
+        println!(
+            "asm: mode={} observation_window_ms={} exposure_reduction_pct={} decoy_budget={} keep_decoy_capture={} resume_standby_after_ms={}",
+            decision.asm_directive.mode.as_str(),
+            decision.asm_directive.observation_window_ms,
+            decision.asm_directive.exposure_reduction_pct,
+            decision.asm_directive.decoy_budget,
+            decision.asm_directive.keep_decoy_capture,
+            decision.asm_directive.resume_standby_after_ms
+        );
         println!("awareness: {}", decision.awareness.summary);
         if let Some(decoy) = &decision.decoy_plan {
             println!(

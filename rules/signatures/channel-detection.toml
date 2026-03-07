@@ -1,0 +1,54 @@
+[[rules]]
+id = "channel-001"
+name = "staged-delivery-chain"
+family = "payload-stager"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags staged delivery, loader, and reflective chain indicators."
+indicators = [
+  "stage_loader",
+  "reflective_loader",
+  "memory_loader",
+  "reflective_payload",
+  "pivot_stage_data",
+]
+
+[[rules]]
+id = "channel-002"
+name = "reverse-channel-over-http-s"
+family = "payload-stager"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags staged reverse channels over HTTP or HTTPS."
+indicators = ["reverse_http", "reverse_https", "custom_headers", "uuid", "tlv"]
+
+[[rules]]
+id = "channel-003"
+name = "interactive-reverse-shell"
+family = "remote-access-trojan"
+recommended_stage = "contain"
+severity = "critical"
+summary = "Flags interactive reverse shell or live command-channel behavior."
+indicators = [
+  "reverse_shell",
+  "shell_reverse_tcp",
+  "interactive_shell",
+  "session_spawn",
+  "cmd_channel",
+]
+
+[[rules]]
+id = "channel-004"
+name = "mobile-surveillance-pattern"
+family = "remote-access-trojan"
+recommended_stage = "contain"
+severity = "high"
+summary = "Flags surveillance-oriented mobile control or collection behavior."
+indicators = [
+  "camerapreview",
+  "audiomanager",
+  "locationmanager",
+  "videorecorder",
+  "readsms",
+  "readcalllogs",
+]

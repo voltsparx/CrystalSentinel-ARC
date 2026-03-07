@@ -44,34 +44,34 @@ pub struct PatternMatch {
 pub fn seed_intel_sources() -> Vec<IntelSource> {
     vec![
         IntelSource {
-            name: "AndroRAT",
+            name: "reference-mobile-rat",
             kind: IntelSourceKind::OffensiveFramework,
-            summary: "Mobile remote-access patterns and Android-focused control flows.",
+            summary: "Mobile remote-access reference patterns and handheld control flows.",
         },
         IntelSource {
-            name: "metasploit-payloads",
+            name: "reference-staged-transport",
             kind: IntelSourceKind::OffensiveFramework,
-            summary: "Stage loading and post-exploitation transport behaviors.",
+            summary: "Stage loading and staged transport reference behaviors.",
         },
         IntelSource {
-            name: "TheFatRat",
+            name: "reference-payload-wrapper",
             kind: IntelSourceKind::OffensiveFramework,
-            summary: "Payload packaging and delivery-chain behavior references.",
+            summary: "Payload packaging and delivery-chain reference behaviors.",
         },
         IntelSource {
-            name: "snort3",
+            name: "reference-signature-engine",
             kind: IntelSourceKind::SecuritySystem,
-            summary: "Rule engine and detection-content reference implementation.",
+            summary: "Signature and rule-based detection reference coverage.",
         },
         IntelSource {
-            name: "suricata",
+            name: "reference-classification-engine",
             kind: IntelSourceKind::SecuritySystem,
-            summary: "Classification-driven IDS/IPS patterns and protocol anomaly coverage.",
+            summary: "Classification-driven protocol anomaly and network monitoring coverage.",
         },
         IntelSource {
-            name: "zeek",
+            name: "reference-stateful-network-monitor",
             kind: IntelSourceKind::SecuritySystem,
-            summary: "Stateful network analysis, protocol-aware scripting, and notice/intel framework coverage.",
+            summary: "Stateful network analysis, protocol-aware scripting, and notice/intel style coverage.",
         },
     ]
 }
@@ -79,7 +79,7 @@ pub fn seed_intel_sources() -> Vec<IntelSource> {
 pub fn seed_framework_catalog() -> Vec<FrameworkFingerprint> {
     vec![
         FrameworkFingerprint {
-            name: "AndroRAT",
+            name: "reference-mobile-rat",
             family: AttackFamily::RemoteAccessTrojan,
             indicators: &[
                 "android control channel",
@@ -89,7 +89,7 @@ pub fn seed_framework_catalog() -> Vec<FrameworkFingerprint> {
             preferred_stage: MitigationStage::Contain,
         },
         FrameworkFingerprint {
-            name: "metasploit-payloads",
+            name: "reference-staged-transport",
             family: AttackFamily::PayloadStager,
             indicators: &[
                 "stage_loader",
@@ -99,7 +99,7 @@ pub fn seed_framework_catalog() -> Vec<FrameworkFingerprint> {
             preferred_stage: MitigationStage::Contain,
         },
         FrameworkFingerprint {
-            name: "TheFatRat",
+            name: "reference-payload-wrapper",
             family: AttackFamily::ExploitDelivery,
             indicators: &["payload_builder", "delivery wrapper", "backdoor packaging"],
             preferred_stage: MitigationStage::Throttle,
@@ -110,82 +110,82 @@ pub fn seed_framework_catalog() -> Vec<FrameworkFingerprint> {
 pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
     vec![
         PatternIdentity {
-            name: "snort3-shellcode-detect",
-            display_name: "Snort3 Shellcode Delivery Pattern",
+            name: "reference-shellcode-detect",
+            display_name: "Reference Shellcode Delivery Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "shellcode-detect",
-            sources: &["snort3"],
+            sources: &["reference-signature-engine"],
             protocols: &["tcp", "http", "smtp", "imap", "pop3"],
             labels: &["shellcode", "stager"],
             indicators: &["shellcode", "decoder", "executable_code", "stager"],
             minimum_matches: 2,
             confidence: 90,
-            narrative: "Mirrors Snort3 shellcode-detect classification for executable delivery artifacts.",
+            narrative: "Derived from reference shellcode-detect coverage for executable delivery artifacts.",
         },
         PatternIdentity {
-            name: "snort3-trojan-activity",
-            display_name: "Snort3 Trojan Activity Pattern",
+            name: "reference-trojan-activity",
+            display_name: "Reference Trojan Activity Pattern",
             family: AttackFamily::RemoteAccessTrojan,
             category: "trojan-activity",
-            sources: &["snort3"],
+            sources: &["reference-signature-engine"],
             protocols: &["tcp", "http", "https", "dns"],
             labels: &["trojan", "rat"],
             indicators: &["trojan", "rat", "backdoor", "remote_control", "command_channel"],
             minimum_matches: 2,
             confidence: 88,
-            narrative: "Mirrors Snort3 trojan-activity classification for remote-control behavior.",
+            narrative: "Derived from reference trojan-activity coverage for remote-control behavior.",
         },
         PatternIdentity {
-            name: "snort3-malware-cnc",
-            display_name: "Snort3 Malware Command Channel",
+            name: "reference-malware-cnc",
+            display_name: "Reference Malware Command Channel Pattern",
             family: AttackFamily::Beaconing,
             category: "malware-cnc",
-            sources: &["snort3"],
+            sources: &["reference-signature-engine"],
             protocols: &["dns", "http", "https", "tcp"],
             labels: &["beacon", "command-and-control"],
             indicators: &["malware_cnc", "command_and_control", "beacon", "polling", "uuid"],
             minimum_matches: 2,
             confidence: 89,
-            narrative: "Mirrors Snort3 malware-cnc classification for command-and-control traffic.",
+            narrative: "Derived from reference malware command-channel coverage for beaconing and command traffic.",
         },
         PatternIdentity {
-            name: "snort3-client-side-exploit",
-            display_name: "Snort3 Client-Side Exploit Pattern",
+            name: "reference-client-side-exploit",
+            display_name: "Reference Client-Side Exploit Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "client-side-exploit",
-            sources: &["snort3"],
+            sources: &["reference-signature-engine"],
             protocols: &["http", "https"],
             labels: &["exploit", "document-delivery"],
             indicators: &["client_side_exploit", "document_exploit", "browser_exploit", "decompress_pdf", "decompress_zip"],
             minimum_matches: 2,
             confidence: 86,
-            narrative: "Mirrors Snort3 client-side-exploit classification for document and browser attack surfaces.",
+            narrative: "Derived from reference client-side exploit coverage for document and browser attack surfaces.",
         },
         PatternIdentity {
-            name: "snort3-sensitive-data-egress",
-            display_name: "Snort3 Sensitive Data Egress Pattern",
+            name: "reference-sensitive-data-egress",
+            display_name: "Reference Sensitive Data Egress Pattern",
             family: AttackFamily::DataExfiltration,
             category: "sensitive-data-egress",
-            sources: &["snort3"],
+            sources: &["reference-signature-engine"],
             protocols: &["http", "smtp", "ftp-data", "imap", "pop3"],
             labels: &["data-exfiltration", "sensitive-data"],
             indicators: &["credit_card", "us_social", "email", "us_phone", "http_client_body", "file_data"],
             minimum_matches: 2,
             confidence: 93,
-            narrative: "Inspired by Snort3 sensitive-data rules for outbound leakage over application protocols.",
+            narrative: "Derived from reference sensitive-data coverage for outbound leakage over application protocols.",
         },
         PatternIdentity {
-            name: "suricata-network-scan",
-            display_name: "Suricata Network Scan Pattern",
+            name: "reference-network-scan",
+            display_name: "Reference Network Scan Pattern",
             family: AttackFamily::OffensiveScan,
             category: "network-scan",
-            sources: &["suricata"],
+            sources: &["reference-classification-engine"],
             protocols: &["tcp", "udp", "icmp"],
             labels: &["scan", "reconnaissance"],
             indicators: &["network_scan", "attempted_recon", "port_sweep", "syn_scan"],
             minimum_matches: 2,
             confidence: 87,
-            narrative: "Derived from Suricata classification coverage for network-scan and attempted-recon activity.",
+            narrative: "Derived from reference classification coverage for network-scan and attempted-recon activity.",
         },
         PatternIdentity {
             name: "research-high-speed-asynchronous-scan",
@@ -227,37 +227,37 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             narrative: "Recognizes service and version-fingerprinting probes typically associated with interactive reconnaissance tooling.",
         },
         PatternIdentity {
-            name: "suricata-command-and-control",
-            display_name: "Suricata Command-and-Control Pattern",
+            name: "reference-command-and-control",
+            display_name: "Reference Command-and-Control Pattern",
             family: AttackFamily::Beaconing,
             category: "command-and-control",
-            sources: &["suricata"],
+            sources: &["reference-classification-engine"],
             protocols: &["dns", "http", "https", "tcp"],
             labels: &["beacon", "command-and-control"],
             indicators: &["command_and_control", "domain_c2", "beacon", "malware_cnc"],
             minimum_matches: 2,
             confidence: 91,
-            narrative: "Derived from Suricata classification coverage for command-and-control and domain-c2 activity.",
+            narrative: "Derived from reference classification coverage for command-and-control and domain-c2 activity.",
         },
         PatternIdentity {
-            name: "suricata-web-application-attack",
-            display_name: "Suricata Web Application Attack Pattern",
+            name: "reference-web-application-attack",
+            display_name: "Reference Web Application Attack Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "web-application-attack",
-            sources: &["suricata"],
+            sources: &["reference-classification-engine"],
             protocols: &["http", "https"],
             labels: &["exploit", "web-application-attack"],
             indicators: &["web_application_attack", "exploit_kit", "http_uri_anomaly", "client_side_exploit"],
             minimum_matches: 2,
             confidence: 89,
-            narrative: "Derived from Suricata classifications for exploit-kit and web-application-attack behavior.",
+            narrative: "Derived from reference classification coverage for exploit-kit and web-application attack behavior.",
         },
         PatternIdentity {
-            name: "suricata-heartbeat-anomaly",
-            display_name: "Suricata TLS Heartbeat Exploit Pattern",
+            name: "reference-heartbeat-anomaly",
+            display_name: "Reference TLS Heartbeat Exploit Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "protocol-command-decode",
-            sources: &["suricata"],
+            sources: &["reference-classification-engine"],
             protocols: &["tls", "https"],
             labels: &["exploit", "heartbleed"],
             indicators: &[
@@ -268,29 +268,29 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             ],
             minimum_matches: 1,
             confidence: 94,
-            narrative: "Derived from Suricata TLS heartbeat anomaly rules that flag possible heartbeat exploit attempts.",
+            narrative: "Derived from reference TLS heartbeat anomaly rules that flag possible heartbeat exploit attempts.",
         },
         PatternIdentity {
-            name: "suricata-credential-theft",
-            display_name: "Suricata Credential Theft Pattern",
+            name: "reference-credential-theft",
+            display_name: "Reference Credential Abuse Pattern",
             family: AttackFamily::IdentityAbuse,
             category: "credential-theft",
-            sources: &["suricata"],
+            sources: &["reference-classification-engine"],
             protocols: &["http", "https", "smtp", "imap"],
             labels: &["credential-theft", "password-spray"],
             indicators: &["credential_theft", "default_login", "suspicious_login", "password_spray"],
             minimum_matches: 2,
             confidence: 90,
-            narrative: "Derived from Suricata classifications for credential theft, suspicious login, and default login attempts.",
+            narrative: "Derived from reference classification coverage for credential theft, suspicious login, and default login attempts.",
         },
         PatternIdentity {
-            name: "zeek-heartbleed-observer",
-            display_name: "Zeek Heartbleed Observer Pattern",
+            name: "reference-stateful-heartbeat-observer",
+            display_name: "Stateful Heartbeat Observer Pattern",
             family: AttackFamily::ExploitDelivery,
-            category: "zeek-heartbleed-notice",
-            sources: &["zeek"],
+            category: "stateful-heartbeat-notice",
+            sources: &["reference-stateful-network-monitor"],
             protocols: &["tls", "https"],
-            labels: &["exploit", "heartbleed", "zeek_notice"],
+            labels: &["exploit", "heartbleed", "stateful_notice"],
             indicators: &[
                 "ssl_heartbeat_attack",
                 "ssl_heartbeat_attack_success",
@@ -300,16 +300,16 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             ],
             minimum_matches: 1,
             confidence: 93,
-            narrative: "Derived from the local Zeek heartbleed policy script, which raises notices for heartbeat attacks, odd-length heartbeat requests, and likely exploit success.",
+            narrative: "Derived from a local stateful heartbeat policy that raises notices for heartbeat attacks, odd-length requests, and likely exploit success.",
         },
         PatternIdentity {
-            name: "zeek-ssh-password-guessing",
-            display_name: "Zeek SSH Password Guessing Pattern",
+            name: "reference-stateful-ssh-password-guessing",
+            display_name: "Stateful SSH Password Guessing Pattern",
             family: AttackFamily::IdentityAbuse,
-            category: "zeek-ssh-bruteforce",
-            sources: &["zeek"],
+            category: "stateful-ssh-bruteforce",
+            sources: &["reference-stateful-network-monitor"],
             protocols: &["ssh", "tcp"],
-            labels: &["credential-theft", "password-spray", "ssh_bruteforce", "zeek_notice"],
+            labels: &["credential-theft", "password-spray", "ssh_bruteforce", "stateful_notice"],
             indicators: &[
                 "password_guessing",
                 "ssh.login.failure",
@@ -319,16 +319,16 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             ],
             minimum_matches: 2,
             confidence: 91,
-            narrative: "Derived from the local Zeek SSH password-guessing policy, which tracks failed SSH logins with SumStats and surfaces password guessing notices and successful-login intel events.",
+            narrative: "Derived from a local stateful SSH password-guessing policy that tracks failed logins and surfaces password-guessing notices and successful-login intel events.",
         },
         PatternIdentity {
-            name: "zeek-http-uri-sqli",
-            display_name: "Zeek HTTP URI SQL Injection Pattern",
+            name: "reference-stateful-http-uri-sqli",
+            display_name: "Stateful HTTP URI Injection Pattern",
             family: AttackFamily::ExploitDelivery,
-            category: "zeek-http-sqli",
-            sources: &["zeek"],
+            category: "stateful-http-sqli",
+            sources: &["reference-stateful-network-monitor"],
             protocols: &["http", "https"],
-            labels: &["exploit", "sql_injection", "uri_sqli", "zeek_notice"],
+            labels: &["exploit", "sql_injection", "uri_sqli", "stateful_notice"],
             indicators: &[
                 "sql_injection_attacker",
                 "sql_injection_victim",
@@ -338,16 +338,16 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             ],
             minimum_matches: 2,
             confidence: 92,
-            narrative: "Derived from the local Zeek HTTP SQL-injection script, which tags suspicious URIs, counts attacker/victim behavior, and raises SQL injection notices.",
+            narrative: "Derived from a local stateful HTTP injection policy that tags suspicious URIs, counts attacker and victim behavior, and raises injection notices.",
         },
         PatternIdentity {
-            name: "zeek-intel-indicator-observation",
-            display_name: "Zeek Intel Indicator Observation",
+            name: "reference-stateful-intel-indicator-observation",
+            display_name: "Stateful Intel Indicator Observation",
             family: AttackFamily::Beaconing,
-            category: "zeek-intel-seen",
-            sources: &["zeek"],
+            category: "stateful-intel-seen",
+            sources: &["reference-stateful-network-monitor"],
             protocols: &["dns", "http", "https"],
-            labels: &["intel", "indicator_observation", "zeek_intel"],
+            labels: &["intel", "indicator_observation", "stateful_intel"],
             indicators: &[
                 "intel::seen",
                 "http::in_url",
@@ -357,124 +357,162 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             ],
             minimum_matches: 2,
             confidence: 88,
-            narrative: "Derived from the local Zeek intel-seen scripts that forward observed URLs and DNS queries into the intel framework for later matching and notice handling.",
+            narrative: "Derived from local stateful intel-seen scripts that forward observed URLs and DNS queries into an intelligence framework for later matching and notice handling.",
         },
         PatternIdentity {
-            name: "metasploit-reverse-http-transport",
-            display_name: "Meterpreter Reverse HTTP Transport",
+            name: "staged-reverse-http-transport",
+            display_name: "Reverse HTTP Transport Pattern",
             family: AttackFamily::PayloadStager,
-            category: "meterpreter-reverse-http",
-            sources: &["metasploit-payloads"],
+            category: "staged-reverse-http",
+            sources: &["reference-staged-transport"],
             protocols: &["http"],
-            labels: &["stager", "reverse_http", "meterpreter"],
+            labels: &["stager", "reverse_http", "staged_transport"],
             indicators: &["meterpreter", "tlv", "http_transport", "uuid", "custom_headers", "user_agent"],
             minimum_matches: 3,
             confidence: 91,
-            narrative: "Reflects Meterpreter reverse HTTP transport traits such as TLV packeting, UUID tagging, and custom header handling.",
+            narrative: "Reflects staged reverse HTTP transport traits such as TLV-style packing, UUID tagging, and custom header handling.",
         },
         PatternIdentity {
-            name: "metasploit-reverse-https-transport",
-            display_name: "Meterpreter Reverse HTTPS Transport",
+            name: "staged-reverse-https-transport",
+            display_name: "Reverse HTTPS Transport Pattern",
             family: AttackFamily::PayloadStager,
-            category: "meterpreter-reverse-https",
-            sources: &["metasploit-payloads"],
+            category: "staged-reverse-https",
+            sources: &["reference-staged-transport"],
             protocols: &["https"],
-            labels: &["stager", "reverse_https", "meterpreter"],
+            labels: &["stager", "reverse_https", "staged_transport"],
             indicators: &["meterpreter", "tlv", "http_transport", "cert_hash", "uuid", "custom_headers"],
             minimum_matches: 3,
             confidence: 90,
-            narrative: "Reflects Meterpreter reverse HTTPS transport traits such as TLV packeting, UUID tagging, and certificate pinning hints.",
+            narrative: "Reflects staged reverse HTTPS transport traits such as TLV-style packing, UUID tagging, and certificate pinning hints.",
         },
         PatternIdentity {
-            name: "metasploit-reverse-tcp-transport",
-            display_name: "Meterpreter Reverse TCP Transport",
+            name: "staged-reverse-tcp-transport",
+            display_name: "Reverse TCP Transport Pattern",
             family: AttackFamily::PayloadStager,
-            category: "meterpreter-reverse-tcp",
-            sources: &["metasploit-payloads"],
+            category: "staged-reverse-tcp",
+            sources: &["reference-staged-transport"],
             protocols: &["tcp"],
-            labels: &["stager", "reverse_tcp", "meterpreter"],
+            labels: &["stager", "reverse_tcp", "staged_transport"],
             indicators: &["meterpreter", "tlv", "tcp_transport", "socket", "uuid", "stage_loader"],
             minimum_matches: 3,
             confidence: 90,
-            narrative: "Reflects Meterpreter reverse TCP transport traits such as TLV packeting, socket handoff, and staged session setup.",
+            narrative: "Reflects staged reverse TCP transport traits such as TLV-style packing, socket handoff, and staged session setup.",
         },
         PatternIdentity {
-            name: "metasploit-stager-migration",
-            display_name: "Meterpreter Stage Migration Pattern",
+            name: "staged-migration-pattern",
+            display_name: "Stage Migration Pattern",
             family: AttackFamily::PayloadStager,
-            category: "meterpreter-stage-control",
-            sources: &["metasploit-payloads"],
+            category: "staged-migration-control",
+            sources: &["reference-staged-transport"],
             protocols: &["tcp", "http", "https"],
-            labels: &["stager", "migration", "meterpreter"],
+            labels: &["stager", "migration", "staged_transport"],
             indicators: &["stage_loader", "migrate_payload", "pivot_stage_data", "reflective_payload"],
             minimum_matches: 2,
             confidence: 92,
-            narrative: "Reflects staged payload and migration markers found in metasploit-payload transport and pivot code.",
+            narrative: "Reflects staged payload and migration markers found in reference transport and pivot code.",
         },
         PatternIdentity {
-            name: "androrat-mobile-control-channel",
-            display_name: "AndroRAT Mobile Control Channel",
+            name: "reflective-loader-pattern",
+            display_name: "Reflective Loader Pattern",
+            family: AttackFamily::PayloadStager,
+            category: "reflective-loader",
+            sources: &["reference-staged-transport", "research"],
+            protocols: &["tcp", "http", "https"],
+            labels: &["stager", "reflective_loader", "memory_loader"],
+            indicators: &[
+                "reflective_payload",
+                "reflective_loader",
+                "memory_loader",
+                "stage_loader",
+                "pivot_stage_data",
+            ],
+            minimum_matches: 2,
+            confidence: 92,
+            narrative: "Recognizes reflective or memory-oriented loader traits that often appear during staged intrusion setup.",
+        },
+        PatternIdentity {
+            name: "interactive-reverse-shell-pattern",
+            display_name: "Interactive Reverse Shell Pattern",
+            family: AttackFamily::RemoteAccessTrojan,
+            category: "interactive-reverse-shell",
+            sources: &["reference-staged-transport", "research"],
+            protocols: &["tcp", "http", "https"],
+            labels: &["reverse_shell", "interactive_shell", "command_channel"],
+            indicators: &[
+                "reverse_shell",
+                "shell_reverse_tcp",
+                "interactive_shell",
+                "session_spawn",
+                "cmd_channel",
+            ],
+            minimum_matches: 2,
+            confidence: 93,
+            narrative: "Recognizes interactive reverse-shell traits that indicate an active remote command channel instead of a harmless probe.",
+        },
+        PatternIdentity {
+            name: "mobile-control-channel-pattern",
+            display_name: "Mobile Control Channel Pattern",
             family: AttackFamily::RemoteAccessTrojan,
             category: "mobile-control-channel",
-            sources: &["AndroRAT"],
+            sources: &["reference-mobile-rat"],
             protocols: &["tcp", "android"],
             labels: &["rat", "android", "control-channel"],
             indicators: &["reverseshell2", "tcpconnection", "mainservice", "jobscheduler", "broadcastreciever"],
             minimum_matches: 2,
             confidence: 92,
-            narrative: "Reflects Android control-channel and persistence markers found in the local AndroRAT sources.",
+            narrative: "Reflects mobile control-channel and persistence markers found in local handheld remote-access reference material.",
         },
         PatternIdentity {
-            name: "androrat-surveillance-suite",
-            display_name: "AndroRAT Surveillance Suite",
+            name: "mobile-surveillance-suite",
+            display_name: "Mobile Surveillance Pattern",
             family: AttackFamily::RemoteAccessTrojan,
             category: "mobile-surveillance",
-            sources: &["AndroRAT"],
+            sources: &["reference-mobile-rat"],
             protocols: &["tcp", "android"],
             labels: &["spyware", "rat", "surveillance"],
             indicators: &["camerapreview", "audiomanager", "locationmanager", "videorecorder", "readsms", "readcalllogs", "newshell"],
             minimum_matches: 2,
             confidence: 94,
-            narrative: "Reflects Android surveillance and collection capabilities exposed in the local AndroRAT payload classes.",
+            narrative: "Reflects mobile surveillance and collection capabilities exposed in local handheld remote-access reference material.",
         },
         PatternIdentity {
-            name: "thefatrat-reverse-tcp-wrapper",
-            display_name: "TheFatRat Reverse TCP Wrapper",
+            name: "payload-wrapper-reverse-tcp",
+            display_name: "Payload Wrapper Reverse TCP Pattern",
             family: AttackFamily::PayloadStager,
             category: "delivery-wrapper",
-            sources: &["TheFatRat"],
+            sources: &["reference-payload-wrapper"],
             protocols: &["tcp"],
             labels: &["stager", "reverse_tcp", "delivery-wrapper"],
             indicators: &["reverse_tcp", "backdoor_apk", "power.py", "apkembed.rb"],
             minimum_matches: 2,
             confidence: 89,
-            narrative: "Reflects TheFatRat delivery wrapper behavior around reverse TCP payload generation and packaging.",
+            narrative: "Reflects payload-wrapper behavior around reverse TCP payload generation and packaging.",
         },
         PatternIdentity {
-            name: "thefatrat-reverse-http-wrapper",
-            display_name: "TheFatRat Reverse HTTP Wrapper",
+            name: "payload-wrapper-reverse-http",
+            display_name: "Payload Wrapper Reverse HTTP Pattern",
             family: AttackFamily::PayloadStager,
             category: "delivery-wrapper",
-            sources: &["TheFatRat"],
+            sources: &["reference-payload-wrapper"],
             protocols: &["http"],
             labels: &["stager", "reverse_http", "delivery-wrapper"],
             indicators: &["reverse_http", "backdoor_apk", "power.py", "apkembed.rb"],
             minimum_matches: 2,
             confidence: 89,
-            narrative: "Reflects TheFatRat delivery wrapper behavior around reverse HTTP payload generation and packaging.",
+            narrative: "Reflects payload-wrapper behavior around reverse HTTP payload generation and packaging.",
         },
         PatternIdentity {
-            name: "thefatrat-reverse-https-wrapper",
-            display_name: "TheFatRat Reverse HTTPS Wrapper",
+            name: "payload-wrapper-reverse-https",
+            display_name: "Payload Wrapper Reverse HTTPS Pattern",
             family: AttackFamily::PayloadStager,
             category: "delivery-wrapper",
-            sources: &["TheFatRat"],
+            sources: &["reference-payload-wrapper"],
             protocols: &["https"],
             labels: &["stager", "reverse_https", "delivery-wrapper"],
             indicators: &["reverse_https", "backdoor_apk", "power.py", "apkembed.rb"],
             minimum_matches: 2,
             confidence: 90,
-            narrative: "Reflects TheFatRat delivery wrapper behavior around reverse HTTPS payload generation and packaging.",
+            narrative: "Reflects payload-wrapper behavior around reverse HTTPS payload generation and packaging.",
         },
     ]
 }
@@ -482,6 +520,7 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
 pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
     let summary = event.summary.to_ascii_lowercase();
     let fast = fast_assess_event(event);
+    let pattern_matches = identify_patterns(&summary);
 
     let (family, confidence, recognition, detail) = if matches!(
         fast.kind,
@@ -507,12 +546,12 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
                 fast,
             ),
         )
-    } else if let Some(pattern) = identify_pattern(&summary) {
+    } else if let Some(pattern) = pattern_matches.first() {
         (
-            pattern.family,
-            pattern.confidence.max(fast.overall_score),
+            pattern.family.clone(),
+            fused_pattern_confidence(&pattern_matches, fast.overall_score),
             Some(pattern.recognition.clone()),
-            explain_fast_path(&pattern.detail, fast),
+            explain_fast_path(&fused_pattern_detail(&pattern_matches), fast),
         )
     } else if contains_any(
         &summary,
@@ -576,6 +615,59 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
             None,
             explain_fast_path(
                 "Reconnaissance or offensive scan pressure triggered the ASM fast path.",
+                fast,
+            ),
+        )
+    } else if contains_any(
+        &summary,
+        &[
+            "reverse_shell",
+            "shell_reverse_tcp",
+            "interactive_shell",
+            "session_spawn",
+            "cmd_channel",
+        ],
+    ) {
+        (
+            AttackFamily::RemoteAccessTrojan,
+            93.max(fast.overall_score),
+            Some(heuristic_recognition(
+                "heuristic-interactive-reverse-shell",
+                "Interactive Reverse Shell Pattern",
+                "interactive-reverse-shell",
+                &["reverse_shell", "interactive_shell", "command_channel"],
+                &["tcp", "http", "https"],
+                &["heuristic"],
+                "Recognized an active reverse-shell or interactive command-channel pattern in the telemetry summary.",
+            )),
+            explain_fast_path(
+                "Telemetry resembled an active reverse-shell or interactive command channel.",
+                fast,
+            ),
+        )
+    } else if contains_any(
+        &summary,
+        &[
+            "reflective_payload",
+            "reflective_loader",
+            "memory_loader",
+            "pivot_stage_data",
+        ],
+    ) {
+        (
+            AttackFamily::PayloadStager,
+            92.max(fast.overall_score),
+            Some(heuristic_recognition(
+                "heuristic-reflective-loader",
+                "Reflective Loader Pattern",
+                "reflective-loader",
+                &["stager", "reflective_loader", "memory_loader"],
+                &["tcp", "http", "https"],
+                &["heuristic"],
+                "Recognized reflective or memory-loader traits in the telemetry summary.",
+            )),
+            explain_fast_path(
+                "Telemetry resembled a reflective or memory-resident loader chain.",
                 fast,
             ),
         )
@@ -768,12 +860,15 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
             explain_fast_path("Signal catalog did not find a strong family match.", fast),
         )
     };
+    let analysis_lanes =
+        derive_signal_analysis_lanes(&summary, recognition.as_ref(), &family, fast);
 
     ThreatSignal {
         source_name: event.source.clone(),
         family,
         confidence,
         recognition,
+        analysis_lanes,
         detail,
     }
 }
@@ -783,7 +878,11 @@ pub fn fast_assess_event(event: &TelemetryEvent) -> FastPathDecision {
 }
 
 pub fn identify_pattern(summary: &str) -> Option<PatternMatch> {
-    let mut best_match = None;
+    identify_patterns(summary).into_iter().next()
+}
+
+pub fn identify_patterns(summary: &str) -> Vec<PatternMatch> {
+    let mut matches = Vec::new();
 
     for identity in seed_pattern_identities() {
         let matched_indicators: Vec<_> = identity
@@ -846,14 +945,11 @@ pub fn identify_pattern(summary: &str) -> Option<PatternMatch> {
             detail,
         };
 
-        if best_match.as_ref().map_or(true, |current: &PatternMatch| {
-            pattern_match.confidence > current.confidence
-        }) {
-            best_match = Some(pattern_match);
-        }
+        matches.push(pattern_match);
     }
 
-    best_match
+    matches.sort_by(|left, right| right.confidence.cmp(&left.confidence));
+    matches
 }
 
 fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
@@ -907,6 +1003,12 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
             "trojan",
             "stager",
             "reverse_shell",
+            "interactive_shell",
+            "session_spawn",
+            "cmd_channel",
+            "reflective_loader",
+            "memory_loader",
+            "reflective_payload",
             "uuid",
             "sql_injection_attacker",
             "sql_injection_victim",
@@ -965,6 +1067,169 @@ fn contains_any(summary: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| summary.contains(needle))
 }
 
+fn derive_signal_analysis_lanes(
+    summary: &str,
+    recognition: Option<&ThreatRecognition>,
+    family: &AttackFamily,
+    fast: FastPathDecision,
+) -> Vec<String> {
+    let mut lanes = std::collections::BTreeSet::new();
+
+    if !matches!(fast.kind, FastThreatKind::Benign) {
+        lanes.insert("asm-fast-path".to_string());
+    }
+
+    if let Some(recognition) = recognition {
+        lanes.insert("pattern-identity".to_string());
+        for source in &recognition.sources {
+            if let Some(lane) = map_source_to_lane(source) {
+                lanes.insert(lane.to_string());
+            }
+        }
+    }
+
+    if matches!(
+        family,
+        AttackFamily::OffensiveScan
+            | AttackFamily::ExploitDelivery
+            | AttackFamily::PayloadStager
+            | AttackFamily::RemoteAccessTrojan
+            | AttackFamily::Beaconing
+            | AttackFamily::DnsTunneling
+            | AttackFamily::DataExfiltration
+            | AttackFamily::IdentityAbuse
+            | AttackFamily::ApiScraping
+    ) {
+        lanes.insert("heuristic".to_string());
+    }
+
+    if contains_any(
+        summary,
+        &[
+            "scan",
+            "recon",
+            "probe",
+            "fingerprint",
+            "banner_grab",
+            "service_probe",
+            "version_scan",
+        ],
+    ) {
+        lanes.insert("recon-model".to_string());
+    }
+
+    if contains_any(
+        summary,
+        &[
+            "stage_loader",
+            "payload",
+            "reverse_shell",
+            "interactive_shell",
+            "reflective_loader",
+            "memory_loader",
+            "cmd_channel",
+            "session_spawn",
+            "sql_injection_attacker",
+            "sql_injection_victim",
+        ],
+    ) {
+        lanes.insert("intrusion-model".to_string());
+    }
+
+    if contains_any(
+        summary,
+        &[
+            "meterpreter",
+            "tlv",
+            "uuid",
+            "custom_headers",
+            "cert_hash",
+            "backdoor_apk",
+            "apkembed.rb",
+            "reverseshell2",
+            "mainservice",
+        ],
+    ) {
+        lanes.insert("transport-intelligence".to_string());
+    }
+
+    if matches!(family, AttackFamily::IntegrityAttack) {
+        lanes.insert("self-integrity-candidate".to_string());
+    }
+
+    lanes.into_iter().collect()
+}
+
+fn map_source_to_lane(source: &str) -> Option<&'static str> {
+    match source {
+        "reference-signature-engine" => Some("signature-style"),
+        "reference-classification-engine" => Some("classification-style"),
+        "reference-stateful-network-monitor" => Some("stateful-analysis"),
+        "reference-staged-transport" => Some("transport-intelligence"),
+        "reference-mobile-rat" => Some("behavioral-intelligence"),
+        "reference-payload-wrapper" => Some("delivery-intelligence"),
+        "heuristic" => Some("heuristic"),
+        "research" => Some("behavioral-research"),
+        _ => None,
+    }
+}
+
+fn fused_pattern_confidence(matches: &[PatternMatch], fast_score: u8) -> u8 {
+    let Some(top) = matches.first() else {
+        return fast_score;
+    };
+
+    let supporting_hits = matches.len().saturating_sub(1) as u8;
+    let unique_sources = matches
+        .iter()
+        .flat_map(|pattern| pattern.recognition.sources.iter())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len() as u8;
+
+    top.confidence
+        .max(fast_score)
+        .saturating_add(supporting_hits.saturating_mul(2))
+        .saturating_add(unique_sources.saturating_sub(1))
+        .min(99)
+}
+
+fn fused_pattern_detail(matches: &[PatternMatch]) -> String {
+    let Some(primary) = matches.first() else {
+        return "pattern_fusion=none".to_string();
+    };
+
+    let support = matches
+        .iter()
+        .map(|pattern| pattern.identity_name)
+        .collect::<Vec<_>>()
+        .join(",");
+    let labels = matches
+        .iter()
+        .flat_map(|pattern| pattern.recognition.labels.iter())
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>()
+        .join(",");
+    let sources = matches
+        .iter()
+        .flat_map(|pattern| pattern.recognition.sources.iter())
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>()
+        .join(",");
+
+    format!(
+        "{} support_patterns={} fused_labels={} fused_sources={} support_count={}",
+        primary.detail,
+        support,
+        labels,
+        sources,
+        matches.len()
+    )
+}
+
 fn heuristic_recognition(
     identity: &str,
     display_name: &str,
@@ -1002,35 +1267,37 @@ fn explain_fast_path(prefix: &str, fast: FastPathDecision) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_signal, identify_pattern, seed_pattern_identities};
+    use super::{detect_signal, identify_pattern, identify_patterns, seed_pattern_identities};
     use sentinel_common::{AttackFamily, HealthSnapshot, TelemetryKind};
     use sentinel_telemetry::TelemetryEvent;
 
     #[test]
-    fn exposes_snort_and_metasploit_pattern_identities() {
+    fn exposes_reference_pattern_identities() {
         let names: Vec<_> = seed_pattern_identities()
             .into_iter()
             .map(|item| item.name)
             .collect();
 
-        assert!(names.contains(&"snort3-malware-cnc"));
-        assert!(names.contains(&"metasploit-reverse-http-transport"));
-        assert!(names.contains(&"suricata-heartbeat-anomaly"));
+        assert!(names.contains(&"reference-malware-cnc"));
+        assert!(names.contains(&"staged-reverse-http-transport"));
+        assert!(names.contains(&"reference-heartbeat-anomaly"));
         assert!(names.contains(&"research-high-speed-asynchronous-scan"));
         assert!(names.contains(&"research-service-fingerprint-scan"));
-        assert!(names.contains(&"zeek-heartbleed-observer"));
-        assert!(names.contains(&"zeek-ssh-password-guessing"));
-        assert!(names.contains(&"zeek-http-uri-sqli"));
-        assert!(names.contains(&"androrat-surveillance-suite"));
-        assert!(names.contains(&"thefatrat-reverse-https-wrapper"));
+        assert!(names.contains(&"reference-stateful-heartbeat-observer"));
+        assert!(names.contains(&"reference-stateful-ssh-password-guessing"));
+        assert!(names.contains(&"reference-stateful-http-uri-sqli"));
+        assert!(names.contains(&"mobile-surveillance-suite"));
+        assert!(names.contains(&"payload-wrapper-reverse-https"));
+        assert!(names.contains(&"reflective-loader-pattern"));
+        assert!(names.contains(&"interactive-reverse-shell-pattern"));
     }
 
     #[test]
-    fn identifies_metasploit_reverse_http_transport_patterns() {
+    fn identifies_reference_reverse_http_transport_patterns() {
         let matched = identify_pattern("meterpreter tlv http_transport uuid custom_headers")
-            .expect("metasploit transport should match");
+            .expect("reverse http transport should match");
 
-        assert_eq!(matched.identity_name, "metasploit-reverse-http-transport");
+        assert_eq!(matched.identity_name, "staged-reverse-http-transport");
         assert_eq!(matched.family, AttackFamily::PayloadStager);
         assert!(matched
             .recognition
@@ -1039,7 +1306,7 @@ mod tests {
     }
 
     #[test]
-    fn detects_snort3_sensitive_data_egress() {
+    fn detects_reference_sensitive_data_egress() {
         let signal = detect_signal(&TelemetryEvent {
             kind: TelemetryKind::Flow,
             source: "workload-17".to_string(),
@@ -1048,11 +1315,11 @@ mod tests {
         });
 
         assert_eq!(signal.family, AttackFamily::DataExfiltration);
-        assert!(signal.detail.contains("snort3-sensitive-data-egress"));
+        assert!(signal.detail.contains("reference-sensitive-data-egress"));
     }
 
     #[test]
-    fn identifies_suricata_heartbeat_exploit() {
+    fn identifies_reference_heartbeat_exploit() {
         let signal = detect_signal(&TelemetryEvent {
             kind: TelemetryKind::Packet,
             source: "198.51.100.61".to_string(),
@@ -1061,20 +1328,20 @@ mod tests {
         });
 
         assert_eq!(signal.family, AttackFamily::ExploitDelivery);
-        assert!(signal.detail.contains("suricata-heartbeat-anomaly"));
+        assert!(signal.detail.contains("reference-heartbeat-anomaly"));
     }
 
     #[test]
-    fn identifies_androrat_surveillance_patterns() {
+    fn identifies_mobile_surveillance_patterns() {
         let matched = identify_pattern("camerapreview readsms videorecorder locationmanager")
-            .expect("androrat surveillance should match");
+            .expect("mobile surveillance should match");
 
-        assert_eq!(matched.identity_name, "androrat-surveillance-suite");
+        assert_eq!(matched.identity_name, "mobile-surveillance-suite");
         assert!(matched.recognition.labels.contains(&"spyware".to_string()));
     }
 
     #[test]
-    fn detects_thefatrat_reverse_https_wrapper() {
+    fn detects_payload_wrapper_reverse_https() {
         let signal = detect_signal(&TelemetryEvent {
             kind: TelemetryKind::Flow,
             source: "payload-host".to_string(),
@@ -1084,7 +1351,10 @@ mod tests {
 
         let recognition = signal.recognition.expect("recognition should exist");
         assert_eq!(signal.family, AttackFamily::PayloadStager);
-        assert_eq!(recognition.display_name, "TheFatRat Reverse HTTPS Wrapper");
+        assert_eq!(
+            recognition.display_name,
+            "Payload Wrapper Reverse HTTPS Pattern"
+        );
         assert!(recognition.labels.contains(&"reverse_https".to_string()));
     }
 
@@ -1124,7 +1394,7 @@ mod tests {
     }
 
     #[test]
-    fn detects_zeek_ssh_password_guessing() {
+    fn detects_stateful_ssh_password_guessing() {
         let signal = detect_signal(&TelemetryEvent {
             kind: TelemetryKind::Identity,
             source: "198.51.100.91".to_string(),
@@ -1136,13 +1406,13 @@ mod tests {
         assert_eq!(signal.family, AttackFamily::IdentityAbuse);
         assert_eq!(
             recognition.display_name,
-            "Zeek SSH Password Guessing Pattern"
+            "Stateful SSH Password Guessing Pattern"
         );
         assert!(recognition.labels.contains(&"ssh_bruteforce".to_string()));
     }
 
     #[test]
-    fn detects_zeek_http_uri_sqli() {
+    fn detects_stateful_http_uri_sqli() {
         let signal = detect_signal(&TelemetryEvent {
             kind: TelemetryKind::Flow,
             source: "198.51.100.99".to_string(),
@@ -1154,8 +1424,63 @@ mod tests {
         assert_eq!(signal.family, AttackFamily::ExploitDelivery);
         assert_eq!(
             recognition.display_name,
-            "Zeek HTTP URI SQL Injection Pattern"
+            "Stateful HTTP URI Injection Pattern"
         );
         assert!(recognition.labels.contains(&"uri_sqli".to_string()));
+    }
+
+    #[test]
+    fn detects_reflective_loader_chain() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Flow,
+            source: "198.51.100.53".to_string(),
+            summary: "reflective_loader memory_loader pivot_stage_data".to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::PayloadStager);
+        assert_eq!(recognition.display_name, "Reflective Loader Pattern");
+        assert!(recognition
+            .labels
+            .contains(&"reflective_loader".to_string()));
+    }
+
+    #[test]
+    fn detects_interactive_reverse_shell_channel() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Flow,
+            source: "198.51.100.54".to_string(),
+            summary: "reverse_shell interactive_shell session_spawn cmd_channel".to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::RemoteAccessTrojan);
+        assert_eq!(
+            recognition.display_name,
+            "Interactive Reverse Shell Pattern"
+        );
+        assert!(recognition.labels.contains(&"reverse_shell".to_string()));
+    }
+
+    #[test]
+    fn fuses_multiple_exploit_signals_into_one_detection_story() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Flow,
+            source: "198.51.100.55".to_string(),
+            summary: "meterpreter tlv http_transport uuid custom_headers reflective_loader pivot_stage_data".to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let matches = identify_patterns(
+            "meterpreter tlv http_transport uuid custom_headers reflective_loader pivot_stage_data",
+        );
+
+        assert!(matches.len() >= 2);
+        assert_eq!(signal.family, AttackFamily::PayloadStager);
+        assert!(signal.confidence >= 95);
+        assert!(signal.detail.contains("support_patterns="));
+        assert!(signal.detail.contains("fused_sources="));
     }
 }

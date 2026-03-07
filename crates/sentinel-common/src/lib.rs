@@ -137,6 +137,7 @@ pub struct ThreatSignal {
     pub family: AttackFamily,
     pub confidence: u8,
     pub recognition: Option<ThreatRecognition>,
+    pub analysis_lanes: Vec<String>,
     pub detail: String,
 }
 
@@ -163,8 +164,16 @@ pub struct SourceInventory {
 impl SourceInventory {
     pub fn current() -> Self {
         Self {
-            offensive_frameworks: vec!["AndroRAT", "metasploit-payloads", "TheFatRat"],
-            security_systems: vec!["snort3", "suricata", "zeek"],
+            offensive_frameworks: vec![
+                "reference-mobile-rat",
+                "reference-staged-transport",
+                "reference-payload-wrapper",
+            ],
+            security_systems: vec![
+                "reference-signature-engine",
+                "reference-classification-engine",
+                "reference-stateful-network-monitor",
+            ],
         }
     }
 }

@@ -1,7 +1,15 @@
 # ninja log v7
-75	981	7946165210463762	CMakeFiles/sentinel-native-c.dir/c/src/resource_guard.c.obj	7726ce212932d233
-108	1014	7946165210799731	CMakeFiles/sentinel-native-cpp.dir/cpp/src/classifier.cpp.obj	47d2c6efeb1239bf
-125	1036	7946165210970988	CMakeFiles/sentinel-native-cpp.dir/cpp/src/scan_predictor.cpp.obj	fe60f23e0b560df0
-93	1060	7946165210654436	CMakeFiles/sentinel-native-c.dir/c/src/budget_guard.c.obj	ce326de4cafa13d7
-1037	2518	7946165220088111	libsentinel-native-cpp.a	aba175b20e15ba89
-1061	2524	7946165220325373	libsentinel-native-c.a	eba94f134486e736
+62	1476	7946208568771782	CMakeFiles/sentinel-native-c.dir/c/src/resource_guard.c.obj	7726ce212932d233
+133	1704	7946208569485020	CMakeFiles/sentinel-native-cpp.dir/cpp/src/classifier.cpp.obj	47d2c6efeb1239bf
+148	1914	7946208569635679	CMakeFiles/sentinel-native-cpp.dir/cpp/src/scan_predictor.cpp.obj	fe60f23e0b560df0
+76	1552	7946208568922330	CMakeFiles/sentinel-native-c.dir/c/src/budget_guard.c.obj	ce326de4cafa13d7
+1959	3754	7946208587740803	libsentinel-native-cpp.a	c64f98318c45abd4
+1746	3451	7946208585618637	libsentinel-native-c.a	1ee631b4dd927087
+81	1560	7946216611778218	build.ninja	9e996e5d2a37a145
+81	1560	7946216611592987	C:/Users/volts/OneDrive/Documents/GitHub/DeepShield/native/build-gcc/cmake_install.cmake	9e996e5d2a37a145
+90	1612	7946208569058056	CMakeFiles/sentinel-native-c.dir/c/src/exposure_guard.c.obj	c81179f8ac8b13f3
+223	1958	7946208570389548	CMakeFiles/sentinel-native-cpp.dir/cpp/src/ambient_state.cpp.obj	8d4e4507d2e6f554
+313	1596	7946208571298844	CMakeFiles/sentinel-native-cpp.dir/cpp/src/behavior_matrix.cpp.obj	219baad2b1461bca
+118	1652	7946208569334289	CMakeFiles/sentinel-native-c.dir/c/src/mesh_guard.c.obj	bcb9f22c879da5eb
+103	1746	7946208569193495	CMakeFiles/sentinel-native-c.dir/c/src/protocol_budget.c.obj	75c5a27e56ccc353
+332	1916	7946208571479713	CMakeFiles/sentinel-native-cpp.dir/cpp/src/recovery_predictor.cpp.obj	c84549d8003854ed

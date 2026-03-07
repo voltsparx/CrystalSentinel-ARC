@@ -7,7 +7,10 @@ use sentinel_detection::{detect_signal, fast_assess_event};
 use sentinel_education::find_lesson;
 use sentinel_forensics::InvestigationRecord;
 use sentinel_integrity::{IntegrityAssessment, IntegrityEngine, IntegrityVerdict};
-use sentinel_native_bridge::{FastPathDecision, FastThreatKind};
+use sentinel_native_bridge::{
+    asm_defense_directive, AsmDefenseDirective, AsmDefenseMode, FastPathDecision,
+    FastPathHealthProfile, FastThreatKind,
+};
 use sentinel_policy::PolicyEngine;
 use sentinel_response::{ResponseAction, ResponsePlan, ResponsePlanner};
 use sentinel_telemetry::TelemetryEvent;
@@ -69,6 +72,7 @@ pub enum RuntimePosture {
     DecoyFirstCapture,
     BoundedContainment,
     ProtectiveIsolation,
+    ZenRecovery,
     DefensiveHibernation,
 }
 
@@ -79,6 +83,7 @@ impl RuntimePosture {
             Self::DecoyFirstCapture => "decoy-first-capture",
             Self::BoundedContainment => "bounded-containment",
             Self::ProtectiveIsolation => "protective-isolation",
+            Self::ZenRecovery => "zen-recovery",
             Self::DefensiveHibernation => "defensive-hibernation",
         }
     }
@@ -153,6 +158,7 @@ pub struct RuntimeDecision {
     pub posture: RuntimePosture,
     pub awareness: SituationAwareness,
     pub fast_path: FastPathDecision,
+    pub asm_directive: AsmDefenseDirective,
     pub decoy_plan: Option<DecoyPlan>,
     pub integrity_assessment: Option<IntegrityAssessment>,
     pub recovery_triage: Option<RecoveryTriage>,
@@ -175,6 +181,15 @@ impl SentinelRuntime {
         let health = effective_health(config, &event.health);
         let integrity_assessment = self.integrity.assess(&event.summary);
         let awareness = SituationAwareness::from_inputs(config, event, &signal, fast_path);
+        let asm_directive = asm_defense_directive(
+            fast_path,
+            FastPathHealthProfile {
+                cpu_load_pct: health.cpu_load_pct,
+                memory_load_pct: health.memory_load_pct,
+                thermal_c: health.thermal_c,
+                passive_only: health.passive_only,
+            },
+        );
         let mut assessment = self.policy.assess(signal, health.clone());
 
         apply_runtime_bounds(
@@ -184,13 +199,14 @@ impl SentinelRuntime {
             integrity_assessment.as_ref(),
         );
 
-        let posture = select_posture(&assessment, &awareness, fast_path);
-        apply_posture_bounds(&mut assessment, posture, &awareness);
+        let posture = select_posture(&assessment, &awareness, fast_path, asm_directive);
+        apply_posture_bounds(&mut assessment, posture, &awareness, asm_directive);
         let recovery_triage = derive_recovery_triage(&health, integrity_assessment.as_ref());
         let decoy_plan = if matches!(
             recovery_triage.as_ref().map(|triage| triage.mode),
             Some(RecoveryMode::DeepHeal)
-        ) {
+        ) || matches!(asm_directive.mode, AsmDefenseMode::ZenRecovery)
+        {
             None
         } else {
             DecoyGovernor::plan(config, &assessment.signal, &health)
@@ -200,6 +216,7 @@ impl SentinelRuntime {
             ResponsePlanner::plan(&assessment),
             posture,
             &awareness,
+            asm_directive,
             decoy_plan.as_ref(),
             integrity_assessment.as_ref(),
             recovery_triage.as_ref(),
@@ -211,6 +228,7 @@ impl SentinelRuntime {
             posture,
             awareness,
             fast_path,
+            asm_directive,
             decoy_plan,
             integrity_assessment,
             recovery_triage,
@@ -322,9 +340,12 @@ fn select_posture(
     assessment: &ThreatAssessment,
     awareness: &SituationAwareness,
     fast_path: FastPathDecision,
+    asm_directive: AsmDefenseDirective,
 ) -> RuntimePosture {
     if awareness.automation_limited && !matches!(awareness.integrity, IntegrityState::Healthy) {
         RuntimePosture::DefensiveHibernation
+    } else if matches!(asm_directive.mode, AsmDefenseMode::ZenRecovery) {
+        RuntimePosture::ZenRecovery
     } else if matches!(
         assessment.signal.family,
         AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack
@@ -363,11 +384,28 @@ fn apply_posture_bounds(
     assessment: &mut ThreatAssessment,
     posture: RuntimePosture,
     awareness: &SituationAwareness,
+    asm_directive: AsmDefenseDirective,
 ) {
     match posture {
         RuntimePosture::DefensiveHibernation => {
             assessment.stage = MitigationStage::Observe;
             append_rationale(assessment, "posture=defensive-hibernation");
+        }
+        RuntimePosture::ZenRecovery => {
+            cap_stage(
+                assessment,
+                MitigationStage::Throttle,
+                "posture=zen-recovery",
+            );
+            append_rationale(
+                assessment,
+                &format!(
+                    "asm_mode={} exposure_reduction_pct={} resume_standby_after_ms={}",
+                    asm_directive.mode.as_str(),
+                    asm_directive.exposure_reduction_pct,
+                    asm_directive.resume_standby_after_ms
+                ),
+            );
         }
         RuntimePosture::ProtectiveIsolation
             if matches!(awareness.fragility, FragilityLevel::Critical) =>
@@ -386,6 +424,7 @@ fn adapt_plan(
     mut plan: ResponsePlan,
     posture: RuntimePosture,
     awareness: &SituationAwareness,
+    asm_directive: AsmDefenseDirective,
     decoy_plan: Option<&DecoyPlan>,
     integrity_assessment: Option<&IntegrityAssessment>,
     recovery_triage: Option<&RecoveryTriage>,
@@ -425,6 +464,22 @@ fn adapt_plan(
             plan.narrative = format!(
                 "Protective isolation posture applied under heavy pressure. {} awareness={}",
                 plan.narrative, awareness.summary
+            );
+        }
+        RuntimePosture::ZenRecovery => {
+            push_unique(&mut plan.actions, ResponseAction::EnterZenMode);
+            push_unique(&mut plan.actions, ResponseAction::ReduceExposureSurface);
+            push_unique(&mut plan.actions, ResponseAction::PauseNonEssentialDecoys);
+            push_unique(&mut plan.actions, ResponseAction::ResumeStandbyWhenStable);
+            push_unique(&mut plan.actions, ResponseAction::LimitAutomation);
+            push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+            plan.narrative = format!(
+                "ASM zen recovery posture reduced exposure and non-essential activity while the defended system regains health. asm_mode={} observation_window_ms={} exposure_reduction_pct={} resume_standby_after_ms={} awareness={}",
+                asm_directive.mode.as_str(),
+                asm_directive.observation_window_ms,
+                asm_directive.exposure_reduction_pct,
+                asm_directive.resume_standby_after_ms,
+                awareness.summary
             );
         }
         RuntimePosture::DefensiveHibernation => {
@@ -552,6 +607,9 @@ fn teaching_hint_for(
         RuntimePosture::ProtectiveIsolation | RuntimePosture::BoundedContainment => {
             find_lesson("SHKE").map(|lesson| lesson.summary)
         }
+        RuntimePosture::ZenRecovery => find_lesson("SARS")
+            .map(|lesson| lesson.summary)
+            .or_else(|| find_lesson("SHKE").map(|lesson| lesson.summary)),
         RuntimePosture::DefensiveHibernation => find_lesson("SHKE").map(|lesson| lesson.summary),
         RuntimePosture::BaselineObserve
             if matches!(
@@ -836,5 +894,43 @@ mod tests {
             .plan
             .actions
             .contains(&ResponseAction::SampleAmbientResonance));
+    }
+
+    #[test]
+    fn high_host_pressure_can_shift_to_zen_recovery() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig::default();
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "203.0.113.91".to_string(),
+            summary: "nmap service_probe banner_grab".to_string(),
+            health: HealthSnapshot {
+                cpu_load_pct: 94,
+                memory_load_pct: 90,
+                thermal_c: 87,
+                passive_only: false,
+            },
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(decision.posture, RuntimePosture::ZenRecovery);
+        assert!(decision.decoy_plan.is_none());
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::EnterZenMode));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ReduceExposureSurface));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::PauseNonEssentialDecoys));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ResumeStandbyWhenStable));
     }
 }

@@ -11,6 +11,7 @@ sentinel-decoy = { path = "../../crates/sentinel-decoy" }
 sentinel-detection = { path = "../../crates/sentinel-detection" }
 sentinel-education = { path = "../../crates/sentinel-education" }
 sentinel-native-bridge = { path = "../../crates/sentinel-native-bridge" }
+sentinel-rules = { path = "../../crates/sentinel-rules" }
 sentinel-scenario = { path = "../../crates/sentinel-scenario" }
 
 [[bin]]

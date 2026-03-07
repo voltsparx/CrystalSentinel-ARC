@@ -7,6 +7,7 @@ Reusable Rust libraries live here.
 - `sentinel-telemetry/`: packet, host, and service telemetry ingestion
 - `sentinel-flow/`: flow tracking and protocol session state
 - `sentinel-detection/`: signature, heuristic, and anomaly execution
+- `sentinel-rules/`: built-in rule manifest loading, local profile states, and compiled rule pack generation
 - `sentinel-decoy/`: health-bounded decoy planning, truth tagging, cadence randomization, and bounded Phantom observation variance
 - `sentinel-education/`: operator teaching, explainability, and harmless scan guides
 - `sentinel-integrity/`: integrity drift analysis and restoration decision support
