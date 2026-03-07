@@ -1,12 +1,14 @@
 #![forbid(unsafe_code)]
 
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
+use sentinel_correlation::CorrelationEngine;
 use sentinel_config::RuntimeConfig;
-use sentinel_detection::{detect_signal, seed_framework_catalog, seed_intel_sources};
+use sentinel_detection::{seed_framework_catalog, seed_intel_sources};
 use sentinel_flow::{FlowKey, FlowTracker};
-use sentinel_forensics::InvestigationRecord;
 use sentinel_native_bridge::native_layer_manifest;
-use sentinel_policy::PolicyEngine;
-use sentinel_response::ResponsePlanner;
+use sentinel_reporting::ReporterEngine;
+use sentinel_runtime::SentinelRuntime;
 use sentinel_storage::MemoryStore;
 use sentinel_telemetry::sample_events;
 
@@ -15,9 +17,10 @@ fn main() {
     let intel_sources = seed_intel_sources();
     let frameworks = seed_framework_catalog();
     let native_layers = native_layer_manifest();
-    let policy = PolicyEngine::default();
+    let runtime = SentinelRuntime::default();
     let mut flow_tracker = FlowTracker::default();
     let mut store = MemoryStore::default();
+    let mut decisions = Vec::new();
 
     println!("CrystalSentinel-CRA runtime starting");
     println!("node: {}", config.node_name);
@@ -33,23 +36,67 @@ fn main() {
         };
         flow_tracker.observe(flow_key);
 
-        let signal = detect_signal(&event);
-        let assessment = policy.assess(signal, event.health);
-        let plan = ResponsePlanner::plan(&assessment);
-        let record = InvestigationRecord::from_assessment(&assessment, &plan);
+        let decision = runtime.process_event(&config, &event);
+        let actions = decision
+            .plan
+            .actions
+            .iter()
+            .map(|action| action.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
 
         println!(
-            "assessment: source={} family={} stage={}",
-            assessment.signal.source_name,
-            assessment.signal.family.as_str(),
-            assessment.stage.as_str()
+            "assessment: source={} family={} stage={} posture={} fast_kind={} fast_score={}",
+            decision.assessment.signal.source_name,
+            decision.assessment.signal.family.as_str(),
+            decision.assessment.stage.as_str(),
+            decision.posture.as_str(),
+            decision.fast_path.kind.as_str(),
+            decision.fast_path.overall_score
         );
+        println!("awareness: {}", decision.awareness.summary);
+        println!("actions: {}", actions);
+        println!("plan: {}", decision.plan.narrative);
+        if let Some(hint) = decision.teaching_hint {
+            println!("teach: {}", hint);
+        }
+        println!("detail: {}", decision.assessment.signal.detail);
 
-        store.store_assessment(assessment);
-        store.store_record(record);
+        decisions.push(decision.clone());
+        store.store_assessment(decision.assessment);
+        store.store_record(decision.record);
+    }
+
+    match run_isolated("correlator", || CorrelationEngine::correlate(&decisions)) {
+        Ok(incidents) => {
+            println!("engine: correlator status=ready incidents={}", incidents.len());
+
+            match run_isolated("reporters", || ReporterEngine::render_all(&incidents)) {
+                Ok(reports) => {
+                    println!("engine: reporters status=ready");
+                    println!("{}", reports.operator_report);
+                    println!("{}", reports.forensic_report);
+                    println!("{}", reports.human_report);
+                }
+                Err(reason) => {
+                    println!("engine: reporters status=fault-isolated reason={reason}");
+                }
+            }
+        }
+        Err(reason) => {
+            println!("engine: correlator status=fault-isolated reason={reason}");
+        }
     }
 
     println!("tracked flows: {}", flow_tracker.len());
     println!("stored assessments: {}", store.assessment_count());
     println!("stored investigation records: {}", store.record_count());
+}
+
+fn run_isolated<T, F>(engine_name: &'static str, job: F) -> Result<T, String>
+where
+    F: FnOnce() -> T,
+{
+    catch_unwind(AssertUnwindSafe(job))
+        .map_err(|_| format!("{engine_name} panicked and was isolated from the main runtime"))
 }

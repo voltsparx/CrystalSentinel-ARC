@@ -19,10 +19,12 @@ impl IntelSourceKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AttackFamily {
+    OffensiveScan,
     RemoteAccessTrojan,
     PayloadStager,
     Beaconing,
     DnsTunneling,
+    DataExfiltration,
     IdentityAbuse,
     ApiScraping,
     ExploitDelivery,
@@ -34,10 +36,12 @@ pub enum AttackFamily {
 impl AttackFamily {
     pub const fn as_str(&self) -> &'static str {
         match self {
+            Self::OffensiveScan => "offensive-scan",
             Self::RemoteAccessTrojan => "remote-access-trojan",
             Self::PayloadStager => "payload-stager",
             Self::Beaconing => "beaconing",
             Self::DnsTunneling => "dns-tunneling",
+            Self::DataExfiltration => "data-exfiltration",
             Self::IdentityAbuse => "identity-abuse",
             Self::ApiScraping => "api-scraping",
             Self::ExploitDelivery => "exploit-delivery",
@@ -152,4 +156,3 @@ impl SourceInventory {
         }
     }
 }
-

@@ -29,8 +29,11 @@ impl PolicyEngine {
 
     fn base_stage_for(&self, signal: &ThreatSignal) -> MitigationStage {
         match signal.family {
+            AttackFamily::OffensiveScan => MitigationStage::Throttle,
             AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack => MitigationStage::Isolate,
-            AttackFamily::DnsTunneling | AttackFamily::IdentityAbuse => MitigationStage::Contain,
+            AttackFamily::DnsTunneling | AttackFamily::DataExfiltration | AttackFamily::IdentityAbuse => {
+                MitigationStage::Contain
+            }
             AttackFamily::PayloadStager
             | AttackFamily::ExploitDelivery
             | AttackFamily::RemoteAccessTrojan
@@ -72,4 +75,3 @@ mod tests {
         assert_eq!(assessment.stage.as_str(), "throttle");
     }
 }
-

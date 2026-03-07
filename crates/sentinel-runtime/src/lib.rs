@@ -1,0 +1,447 @@
+#![forbid(unsafe_code)]
+
+use sentinel_common::{AttackFamily, HealthSnapshot, MitigationStage, ThreatAssessment};
+use sentinel_config::RuntimeConfig;
+use sentinel_detection::{detect_signal, fast_assess_event};
+use sentinel_education::find_lesson;
+use sentinel_forensics::InvestigationRecord;
+use sentinel_native_bridge::{FastPathDecision, FastThreatKind};
+use sentinel_policy::PolicyEngine;
+use sentinel_response::{ResponseAction, ResponsePlan, ResponsePlanner};
+use sentinel_telemetry::TelemetryEvent;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FragilityLevel {
+    Stable,
+    Sensitive,
+    Critical,
+}
+
+impl FragilityLevel {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stable => "stable",
+            Self::Sensitive => "sensitive",
+            Self::Critical => "critical",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IntegrityState {
+    Healthy,
+    Guarded,
+    Critical,
+}
+
+impl IntegrityState {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Guarded => "guarded",
+            Self::Critical => "critical",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SaturationLevel {
+    Nominal,
+    Elevated,
+    Critical,
+}
+
+impl SaturationLevel {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Nominal => "nominal",
+            Self::Elevated => "elevated",
+            Self::Critical => "critical",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuntimePosture {
+    BaselineObserve,
+    DecoyFirstCapture,
+    BoundedContainment,
+    ProtectiveIsolation,
+    DefensiveHibernation,
+}
+
+impl RuntimePosture {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BaselineObserve => "baseline-observe",
+            Self::DecoyFirstCapture => "decoy-first-capture",
+            Self::BoundedContainment => "bounded-containment",
+            Self::ProtectiveIsolation => "protective-isolation",
+            Self::DefensiveHibernation => "defensive-hibernation",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SituationAwareness {
+    pub fragility: FragilityLevel,
+    pub integrity: IntegrityState,
+    pub saturation: SaturationLevel,
+    pub automation_limited: bool,
+    pub summary: String,
+}
+
+impl SituationAwareness {
+    fn from_inputs(
+        config: &RuntimeConfig,
+        event: &TelemetryEvent,
+        signal: &sentinel_common::ThreatSignal,
+        fast_path: FastPathDecision,
+    ) -> Self {
+        let summary = event.summary.to_ascii_lowercase();
+        let health = effective_health(config, &event.health);
+        let fragility = derive_fragility(&summary, &health);
+        let integrity = derive_integrity_state(&summary, signal.family.clone(), fast_path, &health);
+        let saturation = derive_saturation(fast_path, &health);
+        let automation_limited =
+            health.passive_only || matches!(fragility, FragilityLevel::Critical) || matches!(integrity, IntegrityState::Critical);
+
+        Self {
+            fragility,
+            integrity,
+            saturation,
+            automation_limited,
+            summary: format!(
+                "fragility={} integrity={} saturation={} automation_limited={}",
+                fragility.as_str(),
+                integrity.as_str(),
+                saturation.as_str(),
+                automation_limited
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RuntimeDecision {
+    pub posture: RuntimePosture,
+    pub awareness: SituationAwareness,
+    pub fast_path: FastPathDecision,
+    pub assessment: ThreatAssessment,
+    pub plan: ResponsePlan,
+    pub record: InvestigationRecord,
+    pub teaching_hint: Option<&'static str>,
+}
+
+#[derive(Default)]
+pub struct SentinelRuntime {
+    policy: PolicyEngine,
+}
+
+impl SentinelRuntime {
+    pub fn process_event(&self, config: &RuntimeConfig, event: &TelemetryEvent) -> RuntimeDecision {
+        let fast_path = fast_assess_event(event);
+        let signal = detect_signal(event);
+        let awareness = SituationAwareness::from_inputs(config, event, &signal, fast_path);
+        let mut assessment = self.policy.assess(signal, effective_health(config, &event.health));
+
+        apply_runtime_bounds(&mut assessment, config, &awareness);
+
+        let posture = select_posture(&assessment, &awareness, fast_path);
+        apply_posture_bounds(&mut assessment, posture, &awareness);
+
+        let plan = adapt_plan(ResponsePlanner::plan(&assessment), posture, &awareness);
+        let record = InvestigationRecord::from_assessment(&assessment, &plan);
+        let teaching_hint = teaching_hint_for(&assessment, posture);
+
+        RuntimeDecision {
+            posture,
+            awareness,
+            fast_path,
+            assessment,
+            plan,
+            record,
+            teaching_hint,
+        }
+    }
+}
+
+fn effective_health(config: &RuntimeConfig, health: &HealthSnapshot) -> HealthSnapshot {
+    let mut effective = health.clone();
+    effective.passive_only |= config.passive_only;
+    effective
+}
+
+fn derive_fragility(summary: &str, health: &HealthSnapshot) -> FragilityLevel {
+    if health.passive_only
+        || contains_any(summary, &["fragile", "medical", "plc", "industrial", "safety-critical"])
+        || health.thermal_c >= 90
+    {
+        FragilityLevel::Critical
+    } else if contains_any(summary, &["legacy", "iot", "embedded"])
+        || health.cpu_load_pct >= 75
+        || health.memory_load_pct >= 75
+        || health.thermal_c >= 80
+    {
+        FragilityLevel::Sensitive
+    } else {
+        FragilityLevel::Stable
+    }
+}
+
+fn derive_integrity_state(
+    summary: &str,
+    family: AttackFamily,
+    fast_path: FastPathDecision,
+    health: &HealthSnapshot,
+) -> IntegrityState {
+    if matches!(family, AttackFamily::IntegrityAttack)
+        || matches!(fast_path.kind, FastThreatKind::IntegrityPressure)
+        || contains_any(summary, &["integrity_breach", "tamper", "ptrace", "debug", "hook"])
+    {
+        if health.passive_only || health.cpu_load_pct >= 90 || health.memory_load_pct >= 90 {
+            IntegrityState::Critical
+        } else {
+            IntegrityState::Guarded
+        }
+    } else {
+        IntegrityState::Healthy
+    }
+}
+
+fn derive_saturation(fast_path: FastPathDecision, health: &HealthSnapshot) -> SaturationLevel {
+    if matches!(fast_path.kind, FastThreatKind::DdosPressure)
+        || health.cpu_load_pct >= 90
+        || health.memory_load_pct >= 90
+        || health.thermal_c >= 88
+    {
+        SaturationLevel::Critical
+    } else if fast_path.overall_score >= 75
+        || health.cpu_load_pct >= 70
+        || health.memory_load_pct >= 70
+        || health.thermal_c >= 78
+    {
+        SaturationLevel::Elevated
+    } else {
+        SaturationLevel::Nominal
+    }
+}
+
+fn apply_runtime_bounds(assessment: &mut ThreatAssessment, config: &RuntimeConfig, awareness: &SituationAwareness) {
+    cap_stage(assessment, config.max_stage, "config-max-stage");
+
+    if matches!(awareness.fragility, FragilityLevel::Critical) {
+        cap_stage(assessment, MitigationStage::Throttle, "fragile-asset-guard");
+    }
+
+    if matches!(awareness.integrity, IntegrityState::Guarded) {
+        cap_stage(assessment, MitigationStage::Contain, "integrity-guard");
+    }
+
+    if matches!(awareness.integrity, IntegrityState::Critical) {
+        assessment.stage = MitigationStage::Observe;
+        append_rationale(assessment, "integrity-critical->observe-only");
+    }
+}
+
+fn select_posture(
+    assessment: &ThreatAssessment,
+    awareness: &SituationAwareness,
+    fast_path: FastPathDecision,
+) -> RuntimePosture {
+    if awareness.automation_limited && !matches!(awareness.integrity, IntegrityState::Healthy) {
+        RuntimePosture::DefensiveHibernation
+    } else if matches!(
+        assessment.signal.family,
+        AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack
+    ) || matches!(fast_path.kind, FastThreatKind::DdosPressure | FastThreatKind::IntegrityPressure)
+    {
+        RuntimePosture::ProtectiveIsolation
+    } else if matches!(assessment.signal.family, AttackFamily::OffensiveScan)
+        || (matches!(assessment.signal.family, AttackFamily::Unknown)
+            && matches!(fast_path.kind, FastThreatKind::OffensiveScan)
+            && assessment.signal.confidence >= 60)
+    {
+        if awareness.automation_limited {
+            RuntimePosture::BaselineObserve
+        } else {
+            RuntimePosture::DecoyFirstCapture
+        }
+    } else if assessment.stage.rank() >= MitigationStage::Contain.rank() {
+        RuntimePosture::BoundedContainment
+    } else {
+        RuntimePosture::BaselineObserve
+    }
+}
+
+fn apply_posture_bounds(assessment: &mut ThreatAssessment, posture: RuntimePosture, awareness: &SituationAwareness) {
+    match posture {
+        RuntimePosture::DefensiveHibernation => {
+            assessment.stage = MitigationStage::Observe;
+            append_rationale(assessment, "posture=defensive-hibernation");
+        }
+        RuntimePosture::ProtectiveIsolation if matches!(awareness.fragility, FragilityLevel::Critical) => {
+            cap_stage(assessment, MitigationStage::Contain, "protective-isolation-fragility-cap");
+        }
+        _ => {}
+    }
+}
+
+fn adapt_plan(mut plan: ResponsePlan, posture: RuntimePosture, awareness: &SituationAwareness) -> ResponsePlan {
+    match posture {
+        RuntimePosture::BaselineObserve => {
+            push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+            plan.narrative = format!("{} awareness={}", plan.narrative, awareness.summary);
+        }
+        RuntimePosture::DecoyFirstCapture => {
+            push_unique(&mut plan.actions, ResponseAction::TriggerIdfWindow);
+            push_unique(&mut plan.actions, ResponseAction::FocusPhantomObservation);
+            push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+            plan.narrative = format!(
+                "Decoy-first capture posture opened a bounded IDF/Phantom window. {} awareness={}",
+                plan.narrative, awareness.summary
+            );
+        }
+        RuntimePosture::BoundedContainment => {
+            push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+            if !matches!(awareness.integrity, IntegrityState::Healthy) {
+                push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
+            }
+            plan.narrative = format!("Bounded containment posture applied. {} awareness={}", plan.narrative, awareness.summary);
+        }
+        RuntimePosture::ProtectiveIsolation => {
+            push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
+            push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+            plan.narrative = format!(
+                "Protective isolation posture applied under heavy pressure. {} awareness={}",
+                plan.narrative, awareness.summary
+            );
+        }
+        RuntimePosture::DefensiveHibernation => {
+            plan.actions = vec![
+                ResponseAction::EmitAlert,
+                ResponseAction::VerifySelfIntegrity,
+                ResponseAction::LimitAutomation,
+                ResponseAction::PreserveServiceContinuity,
+                ResponseAction::OpenInvestigation,
+                ResponseAction::RequireOperatorApproval,
+            ];
+            plan.narrative = format!(
+                "Defensive hibernation limited autonomous action to protect Sentinel integrity and fragile assets. awareness={}",
+                awareness.summary
+            );
+        }
+    }
+
+    plan
+}
+
+fn teaching_hint_for(assessment: &ThreatAssessment, posture: RuntimePosture) -> Option<&'static str> {
+    match posture {
+        RuntimePosture::DecoyFirstCapture => find_lesson("IDF Scan").map(|lesson| lesson.summary),
+        RuntimePosture::ProtectiveIsolation | RuntimePosture::BoundedContainment => {
+            find_lesson("SARS").map(|lesson| lesson.summary)
+        }
+        RuntimePosture::DefensiveHibernation => find_lesson("SHKE").map(|lesson| lesson.summary),
+        RuntimePosture::BaselineObserve if matches!(assessment.signal.family, AttackFamily::OffensiveScan) => {
+            find_lesson("Phantom-Scan").map(|lesson| lesson.summary)
+        }
+        _ => None,
+    }
+}
+
+fn cap_stage(assessment: &mut ThreatAssessment, max_stage: MitigationStage, reason: &str) {
+    let capped_stage = assessment.stage.least_aggressive(max_stage);
+    if capped_stage != assessment.stage {
+        assessment.stage = capped_stage;
+        append_rationale(assessment, reason);
+    }
+}
+
+fn append_rationale(assessment: &mut ThreatAssessment, extra: &str) {
+    assessment.rationale.push_str(" | ");
+    assessment.rationale.push_str(extra);
+}
+
+fn contains_any(summary: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| summary.contains(needle))
+}
+
+fn push_unique(actions: &mut Vec<ResponseAction>, action: ResponseAction) {
+    if !actions.contains(&action) {
+        actions.push(action);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RuntimePosture, SentinelRuntime};
+    use sentinel_common::{HealthSnapshot, MitigationStage, TelemetryKind};
+    use sentinel_config::RuntimeConfig;
+    use sentinel_response::ResponseAction;
+    use sentinel_telemetry::TelemetryEvent;
+
+    #[test]
+    fn offensive_scan_uses_decoy_first_capture() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig::default();
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "203.0.113.88".to_string(),
+            summary: "syn probe recon fingerprint".to_string(),
+            health: HealthSnapshot::default(),
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(decision.posture, RuntimePosture::DecoyFirstCapture);
+        assert!(decision.plan.actions.contains(&ResponseAction::TriggerIdfWindow));
+        assert!(decision.plan.actions.contains(&ResponseAction::FocusPhantomObservation));
+    }
+
+    #[test]
+    fn integrity_pressure_limits_automation() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig::default();
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Integrity,
+            source: "sentinel-self".to_string(),
+            summary: "integrity_breach ptrace tamper".to_string(),
+            health: HealthSnapshot {
+                passive_only: true,
+                ..HealthSnapshot::default()
+            },
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(decision.posture, RuntimePosture::DefensiveHibernation);
+        assert_eq!(decision.assessment.stage, MitigationStage::Observe);
+        assert!(decision.plan.actions.contains(&ResponseAction::VerifySelfIntegrity));
+        assert!(decision.plan.actions.contains(&ResponseAction::RequireOperatorApproval));
+    }
+
+    #[test]
+    fn config_caps_max_stage() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig {
+            max_stage: MitigationStage::Contain,
+            ..RuntimeConfig::default()
+        };
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Flow,
+            source: "198.51.100.44".to_string(),
+            summary: "high_entropy dns_tunnel burst_flood".to_string(),
+            health: HealthSnapshot {
+                cpu_load_pct: 40,
+                memory_load_pct: 40,
+                thermal_c: 55,
+                passive_only: false,
+            },
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(decision.assessment.stage, MitigationStage::Contain);
+    }
+}

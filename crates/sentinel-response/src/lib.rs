@@ -2,15 +2,39 @@
 
 use sentinel_common::{MitigationStage, ThreatAssessment};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ResponseAction {
     EmitAlert,
     TagSource,
     RateLimitSource,
     TemporaryBlockSource,
     IsolateWorkload,
+    TriggerIdfWindow,
+    FocusPhantomObservation,
+    VerifySelfIntegrity,
+    LimitAutomation,
+    PreserveServiceContinuity,
     OpenInvestigation,
     RequireOperatorApproval,
+}
+
+impl ResponseAction {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EmitAlert => "emit-alert",
+            Self::TagSource => "tag-source",
+            Self::RateLimitSource => "rate-limit-source",
+            Self::TemporaryBlockSource => "temporary-block-source",
+            Self::IsolateWorkload => "isolate-workload",
+            Self::TriggerIdfWindow => "trigger-idf-window",
+            Self::FocusPhantomObservation => "focus-phantom-observation",
+            Self::VerifySelfIntegrity => "verify-self-integrity",
+            Self::LimitAutomation => "limit-automation",
+            Self::PreserveServiceContinuity => "preserve-service-continuity",
+            Self::OpenInvestigation => "open-investigation",
+            Self::RequireOperatorApproval => "require-operator-approval",
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -74,4 +98,3 @@ impl ResponsePlanner {
         }
     }
 }
-

@@ -6,8 +6,8 @@ license.workspace = true
 
 [dependencies]
 sentinel-common = { path = "../sentinel-common" }
+sentinel-native-bridge = { path = "../sentinel-native-bridge" }
 sentinel-telemetry = { path = "../sentinel-telemetry" }
 
 [lib]
 path = "src/lib.rs"
-

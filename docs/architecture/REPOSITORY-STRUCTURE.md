@@ -33,7 +33,11 @@ binary or one unreadable folder.
 |   |-- sentinel-telemetry/
 |   |-- sentinel-flow/
 |   |-- sentinel-detection/
+|   |-- sentinel-education/
 |   |-- sentinel-native-bridge/
+|   |-- sentinel-correlation/
+|   |-- sentinel-reporting/
+|   |-- sentinel-runtime/
 |   |-- sentinel-policy/
 |   |-- sentinel-response/
 |   |-- sentinel-forensics/
@@ -126,8 +130,16 @@ binary or one unreadable folder.
 - `sentinel-telemetry` ingests packet, host, and service data.
 - `sentinel-flow` converts raw observations into sessions and state.
 - `sentinel-detection` executes signatures, heuristics, and anomaly logic.
+- `sentinel-education` turns scan types and defensive behavior into operator
+  teaching material and harmlessness guarantees.
 - `sentinel-native-bridge` defines the contracts to C, C++, and ASM support
   layers without forcing those components into the Rust-only control plane.
+- `sentinel-correlation` assembles multiple runtime decisions into incidents,
+  timelines, and evidence bundles.
+- `sentinel-reporting` produces operator, forensic, and plain-language
+  explanations of what happened.
+- `sentinel-runtime` fuses fast-path signals, situation awareness,
+  self-integrity, and bounded autonomous decisions into one runtime loop.
 - `sentinel-policy` selects a response based on confidence, asset criticality,
   and safety policy.
 - `sentinel-response` performs bounded defensive actions and rollback.
@@ -142,6 +154,22 @@ binary or one unreadable folder.
 - `native/asm/` is reserved for timing primitives and ultra-low-latency
   fast-path helpers.
 - `native/include/` contains shared headers for native components.
+
+## Safety and Fail-Safe Boundaries
+
+- Situation-aware control must account for attack stage, asset criticality,
+  protocol context, and whether a protected device is fragile or
+  safety-sensitive.
+- Real-time health monitoring must cap automation when CPU, memory, jitter, or
+  thermal pressure threatens the protected host.
+- Bio-response logic must downgrade or back off when a defensive action itself
+  risks destabilizing fragile infrastructure.
+- Self-integrity monitoring must detect tamper, corruption, stalled logic, or
+  runtime instability inside the protector itself.
+- ASM fast-path logic exists to accelerate defensive sensing and last-line
+  fail-safe support under heavy pressure, not to introduce offensive behavior.
+- Source cut-off or isolation is reserved for bounded containment when
+  continued contact risks overwhelming or damaging the defended environment.
 
 ## Content Boundaries
 

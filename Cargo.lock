@@ -28,12 +28,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "sentinel-correlation"
+version = "0.1.0"
+dependencies = [
+ "sentinel-common",
+ "sentinel-config",
+ "sentinel-runtime",
+ "sentinel-telemetry",
+]
+
+[[package]]
 name = "sentinel-detection"
 version = "0.1.0"
 dependencies = [
  "sentinel-common",
+ "sentinel-native-bridge",
  "sentinel-telemetry",
 ]
+
+[[package]]
+name = "sentinel-education"
+version = "0.1.0"
 
 [[package]]
 name = "sentinel-flow"
@@ -50,6 +65,9 @@ dependencies = [
 [[package]]
 name = "sentinel-native-bridge"
 version = "0.1.0"
+dependencies = [
+ "sentinel-common",
+]
 
 [[package]]
 name = "sentinel-policy"
@@ -60,10 +78,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "sentinel-reporting"
+version = "0.1.0"
+dependencies = [
+ "sentinel-common",
+ "sentinel-correlation",
+]
+
+[[package]]
 name = "sentinel-response"
 version = "0.1.0"
 dependencies = [
  "sentinel-common",
+]
+
+[[package]]
+name = "sentinel-runtime"
+version = "0.1.0"
+dependencies = [
+ "sentinel-common",
+ "sentinel-config",
+ "sentinel-detection",
+ "sentinel-education",
+ "sentinel-forensics",
+ "sentinel-native-bridge",
+ "sentinel-policy",
+ "sentinel-response",
+ "sentinel-telemetry",
 ]
 
 [[package]]
@@ -93,6 +134,7 @@ name = "sentinelctl"
 version = "0.1.0"
 dependencies = [
  "sentinel-detection",
+ "sentinel-education",
  "sentinel-native-bridge",
  "sentinel-scenario",
 ]
@@ -102,12 +144,12 @@ name = "sentineld"
 version = "0.1.0"
 dependencies = [
  "sentinel-config",
+ "sentinel-correlation",
  "sentinel-detection",
  "sentinel-flow",
- "sentinel-forensics",
  "sentinel-native-bridge",
- "sentinel-policy",
- "sentinel-response",
+ "sentinel-reporting",
+ "sentinel-runtime",
  "sentinel-storage",
  "sentinel-telemetry",
 ]

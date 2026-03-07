@@ -1,0 +1,19 @@
+[package]
+name = "sentinel-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-common = { path = "../sentinel-common" }
+sentinel-config = { path = "../sentinel-config" }
+sentinel-detection = { path = "../sentinel-detection" }
+sentinel-education = { path = "../sentinel-education" }
+sentinel-forensics = { path = "../sentinel-forensics" }
+sentinel-native-bridge = { path = "../sentinel-native-bridge" }
+sentinel-policy = { path = "../sentinel-policy" }
+sentinel-response = { path = "../sentinel-response" }
+sentinel-telemetry = { path = "../sentinel-telemetry" }
+
+[lib]
+path = "src/lib.rs"

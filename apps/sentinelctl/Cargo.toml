@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 sentinel-detection = { path = "../../crates/sentinel-detection" }
+sentinel-education = { path = "../../crates/sentinel-education" }
 sentinel-native-bridge = { path = "../../crates/sentinel-native-bridge" }
 sentinel-scenario = { path = "../../crates/sentinel-scenario" }
 

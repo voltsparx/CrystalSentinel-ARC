@@ -15,8 +15,10 @@ deterministic memory layout, or extremely tight timing.
 
 ## Current Status
 
-The native layer is scaffolded, not linked into the runtime yet. The current
-goal is to define stable contracts and code layout before deeper integration.
+The external `native/` tree remains scaffolded for future out-of-process or
+shared-library integration. The ASM decision path is already linked inside the
+Rust bridge crate through inline assembly for cycle stamping and fast-path
+pressure scoring.
 
 ## Build Direction
 
@@ -28,4 +30,3 @@ cmake --build native/build
 ```
 
 ASM support is intentionally opt-in in the initial scaffold.
-
