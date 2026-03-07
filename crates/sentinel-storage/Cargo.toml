@@ -1,0 +1,13 @@
+[package]
+name = "sentinel-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-common = { path = "../sentinel-common" }
+sentinel-forensics = { path = "../sentinel-forensics" }
+
+[lib]
+path = "src/lib.rs"
+

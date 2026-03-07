@@ -1,0 +1,12 @@
+[package]
+name = "sentinel-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-common = { path = "../sentinel-common" }
+
+[lib]
+path = "src/lib.rs"
+

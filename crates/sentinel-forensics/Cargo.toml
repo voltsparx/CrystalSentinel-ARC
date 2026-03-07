@@ -1,0 +1,13 @@
+[package]
+name = "sentinel-forensics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-common = { path = "../sentinel-common" }
+sentinel-response = { path = "../sentinel-response" }
+
+[lib]
+path = "src/lib.rs"
+

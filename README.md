@@ -1,6 +1,6 @@
-# CrystalIDPS-CRA
+# CrystalSentinel-CRA
 
-CrystalIDPS-CRA is a defensive IDPS concept focused on safe detection, prevention,
+CrystalSentinel-CRA is a defensive platform concept focused on safe detection, prevention,
 containment, and investigation of hostile activity across modern networks and
 endpoints.
 
@@ -18,7 +18,7 @@ how the system should explain its decision to operators and researchers.
 
 ## Positioning
 
-CrystalIDPS-CRA is a defensive system. In this project, "neutralize" means
+CrystalSentinel-CRA is a defensive system. In this project, "neutralize" means
 defensive containment, not retaliation.
 
 Allowed containment actions:
@@ -45,7 +45,7 @@ Allowed containment actions:
 ## Core Problem Statement
 
 Traditional security tools often force a tradeoff between speed, safety, and
-clarity. CrystalIDPS-CRA aims to close that gap by combining:
+clarity. CrystalSentinel-CRA aims to close that gap by combining:
 
 - early observation
 - scenario-driven detection
@@ -197,7 +197,7 @@ The first version should prove the core idea with the smallest credible build.
 
 ## Researcher Value
 
-To make the project useful beyond defense operations, CrystalIDPS-CRA should support:
+To make the project useful beyond defense operations, CrystalSentinel-CRA should support:
 
 - reproducible attack scenario definitions
 - PCAP replay and offline analysis
@@ -219,7 +219,7 @@ Measure the project with concrete outcomes, not architecture claims.
 
 ## Non-Goals
 
-CrystalIDPS-CRA should avoid claims that are not technically defensible.
+CrystalSentinel-CRA should avoid claims that are not technically defensible.
 
 - no "100% secure" claims
 - no autonomous retaliation

@@ -1,0 +1,24 @@
+[workspace]
+members = [
+  "apps/sentineld",
+  "apps/sentinelctl",
+  "apps/sentinel-console-api",
+  "crates/sentinel-common",
+  "crates/sentinel-config",
+  "crates/sentinel-telemetry",
+  "crates/sentinel-flow",
+  "crates/sentinel-detection",
+  "crates/sentinel-native-bridge",
+  "crates/sentinel-policy",
+  "crates/sentinel-response",
+  "crates/sentinel-forensics",
+  "crates/sentinel-storage",
+  "crates/sentinel-bio-response",
+  "crates/sentinel-scenario",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"

@@ -1,0 +1,4 @@
+node_name = "sentinel-node-01"
+passive_only = false
+max_stage = "isolate"
+

@@ -1,0 +1,20 @@
+[package]
+name = "sentineld"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-config = { path = "../../crates/sentinel-config" }
+sentinel-detection = { path = "../../crates/sentinel-detection" }
+sentinel-flow = { path = "../../crates/sentinel-flow" }
+sentinel-forensics = { path = "../../crates/sentinel-forensics" }
+sentinel-native-bridge = { path = "../../crates/sentinel-native-bridge" }
+sentinel-policy = { path = "../../crates/sentinel-policy" }
+sentinel-response = { path = "../../crates/sentinel-response" }
+sentinel-storage = { path = "../../crates/sentinel-storage" }
+sentinel-telemetry = { path = "../../crates/sentinel-telemetry" }
+
+[[bin]]
+name = "sentineld"
+path = "src/main.rs"

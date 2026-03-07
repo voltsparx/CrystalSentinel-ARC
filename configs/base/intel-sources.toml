@@ -1,0 +1,10 @@
+offensive_frameworks = [
+  "AndroRAT",
+  "metasploit-payloads",
+  "TheFatRat",
+]
+
+security_systems = [
+  "snort3",
+]
+

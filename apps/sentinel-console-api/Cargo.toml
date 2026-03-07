@@ -1,0 +1,13 @@
+[package]
+name = "sentinel-console-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-detection = { path = "../../crates/sentinel-detection" }
+
+[[bin]]
+name = "sentinel-console-api"
+path = "src/main.rs"
+

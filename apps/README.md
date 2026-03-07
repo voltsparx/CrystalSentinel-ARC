@@ -2,7 +2,6 @@
 
 Runtime binaries live here.
 
-- `crystald/`: long-running sensor, detection, and response daemon
-- `crystalctl/`: operator and admin CLI
-- `crystal-console-api/`: API surface for dashboards and integrations
-
+- `sentineld/`: long-running sensor, detection, and response daemon
+- `sentinelctl/`: operator and admin CLI
+- `sentinel-console-api/`: API surface for dashboards and integrations
