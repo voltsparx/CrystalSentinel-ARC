@@ -1,7 +1,11 @@
 #![forbid(unsafe_code)]
 
-use sentinel_common::{AttackFamily, IntelSource, IntelSourceKind, MitigationStage, ThreatSignal};
-use sentinel_native_bridge::{fast_path_assess, FastPathDecision, FastPathFeatures, FastThreatKind};
+use sentinel_common::{
+    AttackFamily, IntelSource, IntelSourceKind, MitigationStage, ThreatRecognition, ThreatSignal,
+};
+use sentinel_native_bridge::{
+    fast_path_assess, FastPathDecision, FastPathFeatures, FastThreatKind,
+};
 use sentinel_telemetry::TelemetryEvent;
 
 #[derive(Clone, Debug)]
@@ -15,10 +19,12 @@ pub struct FrameworkFingerprint {
 #[derive(Clone, Debug)]
 pub struct PatternIdentity {
     pub name: &'static str,
+    pub display_name: &'static str,
     pub family: AttackFamily,
     pub category: &'static str,
     pub sources: &'static [&'static str],
     pub protocols: &'static [&'static str],
+    pub labels: &'static [&'static str],
     pub indicators: &'static [&'static str],
     pub minimum_matches: usize,
     pub confidence: u8,
@@ -29,6 +35,7 @@ pub struct PatternIdentity {
 pub struct PatternMatch {
     pub identity_name: &'static str,
     pub family: AttackFamily,
+    pub recognition: ThreatRecognition,
     pub matched_indicators: Vec<&'static str>,
     pub confidence: u8,
     pub detail: String,
@@ -69,13 +76,21 @@ pub fn seed_framework_catalog() -> Vec<FrameworkFingerprint> {
         FrameworkFingerprint {
             name: "AndroRAT",
             family: AttackFamily::RemoteAccessTrojan,
-            indicators: &["android control channel", "device command fan-out", "mobile beaconing"],
+            indicators: &[
+                "android control channel",
+                "device command fan-out",
+                "mobile beaconing",
+            ],
             preferred_stage: MitigationStage::Contain,
         },
         FrameworkFingerprint {
             name: "metasploit-payloads",
             family: AttackFamily::PayloadStager,
-            indicators: &["stage_loader", "reflective payload", "post-exploitation transport"],
+            indicators: &[
+                "stage_loader",
+                "reflective payload",
+                "post-exploitation transport",
+            ],
             preferred_stage: MitigationStage::Contain,
         },
         FrameworkFingerprint {
@@ -91,10 +106,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
     vec![
         PatternIdentity {
             name: "snort3-shellcode-detect",
+            display_name: "Snort3 Shellcode Delivery Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "shellcode-detect",
             sources: &["snort3"],
             protocols: &["tcp", "http", "smtp", "imap", "pop3"],
+            labels: &["shellcode", "stager"],
             indicators: &["shellcode", "decoder", "executable_code", "stager"],
             minimum_matches: 2,
             confidence: 90,
@@ -102,10 +119,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "snort3-trojan-activity",
+            display_name: "Snort3 Trojan Activity Pattern",
             family: AttackFamily::RemoteAccessTrojan,
             category: "trojan-activity",
             sources: &["snort3"],
             protocols: &["tcp", "http", "https", "dns"],
+            labels: &["trojan", "rat"],
             indicators: &["trojan", "rat", "backdoor", "remote_control", "command_channel"],
             minimum_matches: 2,
             confidence: 88,
@@ -113,10 +132,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "snort3-malware-cnc",
+            display_name: "Snort3 Malware Command Channel",
             family: AttackFamily::Beaconing,
             category: "malware-cnc",
             sources: &["snort3"],
             protocols: &["dns", "http", "https", "tcp"],
+            labels: &["beacon", "command-and-control"],
             indicators: &["malware_cnc", "command_and_control", "beacon", "polling", "uuid"],
             minimum_matches: 2,
             confidence: 89,
@@ -124,10 +145,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "snort3-client-side-exploit",
+            display_name: "Snort3 Client-Side Exploit Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "client-side-exploit",
             sources: &["snort3"],
             protocols: &["http", "https"],
+            labels: &["exploit", "document-delivery"],
             indicators: &["client_side_exploit", "document_exploit", "browser_exploit", "decompress_pdf", "decompress_zip"],
             minimum_matches: 2,
             confidence: 86,
@@ -135,10 +158,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "snort3-sensitive-data-egress",
+            display_name: "Snort3 Sensitive Data Egress Pattern",
             family: AttackFamily::DataExfiltration,
             category: "sensitive-data-egress",
             sources: &["snort3"],
             protocols: &["http", "smtp", "ftp-data", "imap", "pop3"],
+            labels: &["data-exfiltration", "sensitive-data"],
             indicators: &["credit_card", "us_social", "email", "us_phone", "http_client_body", "file_data"],
             minimum_matches: 2,
             confidence: 93,
@@ -146,21 +171,45 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "suricata-network-scan",
+            display_name: "Suricata Network Scan Pattern",
             family: AttackFamily::OffensiveScan,
             category: "network-scan",
             sources: &["suricata"],
             protocols: &["tcp", "udp", "icmp"],
+            labels: &["scan", "reconnaissance"],
             indicators: &["network_scan", "attempted_recon", "port_sweep", "syn_scan"],
             minimum_matches: 2,
             confidence: 87,
             narrative: "Derived from Suricata classification coverage for network-scan and attempted-recon activity.",
         },
         PatternIdentity {
+            name: "research-high-speed-asynchronous-scan",
+            display_name: "High-Speed Asynchronous Scan Pattern",
+            family: AttackFamily::OffensiveScan,
+            category: "high-speed-recon",
+            sources: &["heuristic", "research"],
+            protocols: &["tcp"],
+            labels: &["scan", "reconnaissance", "high_speed_scan", "asynchronous_sweep"],
+            indicators: &[
+                "masscan",
+                "async_scan",
+                "asynchronous_sweep",
+                "stateless_syn",
+                "wide_port_sweep",
+                "pps_scan",
+            ],
+            minimum_matches: 2,
+            confidence: 94,
+            narrative: "Recognizes high-speed asynchronous scan pressure typical of mass-scan style tooling without relying on one single product signature.",
+        },
+        PatternIdentity {
             name: "suricata-command-and-control",
+            display_name: "Suricata Command-and-Control Pattern",
             family: AttackFamily::Beaconing,
             category: "command-and-control",
             sources: &["suricata"],
             protocols: &["dns", "http", "https", "tcp"],
+            labels: &["beacon", "command-and-control"],
             indicators: &["command_and_control", "domain_c2", "beacon", "malware_cnc"],
             minimum_matches: 2,
             confidence: 91,
@@ -168,10 +217,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "suricata-web-application-attack",
+            display_name: "Suricata Web Application Attack Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "web-application-attack",
             sources: &["suricata"],
             protocols: &["http", "https"],
+            labels: &["exploit", "web-application-attack"],
             indicators: &["web_application_attack", "exploit_kit", "http_uri_anomaly", "client_side_exploit"],
             minimum_matches: 2,
             confidence: 89,
@@ -179,10 +230,12 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "suricata-heartbeat-anomaly",
+            display_name: "Suricata TLS Heartbeat Exploit Pattern",
             family: AttackFamily::ExploitDelivery,
             category: "protocol-command-decode",
             sources: &["suricata"],
             protocols: &["tls", "https"],
+            labels: &["exploit", "heartbleed"],
             indicators: &[
                 "tls.invalid_heartbeat_message",
                 "tls.overflow_heartbeat_message",
@@ -195,47 +248,133 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
         },
         PatternIdentity {
             name: "suricata-credential-theft",
+            display_name: "Suricata Credential Theft Pattern",
             family: AttackFamily::IdentityAbuse,
             category: "credential-theft",
             sources: &["suricata"],
             protocols: &["http", "https", "smtp", "imap"],
+            labels: &["credential-theft", "password-spray"],
             indicators: &["credential_theft", "default_login", "suspicious_login", "password_spray"],
             minimum_matches: 2,
             confidence: 90,
             narrative: "Derived from Suricata classifications for credential theft, suspicious login, and default login attempts.",
         },
         PatternIdentity {
-            name: "metasploit-http-transport",
+            name: "metasploit-reverse-http-transport",
+            display_name: "Meterpreter Reverse HTTP Transport",
             family: AttackFamily::PayloadStager,
-            category: "meterpreter-http-transport",
+            category: "meterpreter-reverse-http",
             sources: &["metasploit-payloads"],
-            protocols: &["http", "https"],
-            indicators: &["meterpreter", "tlv", "http_transport", "uuid", "custom_headers", "user_agent", "cert_hash"],
+            protocols: &["http"],
+            labels: &["stager", "reverse_http", "meterpreter"],
+            indicators: &["meterpreter", "tlv", "http_transport", "uuid", "custom_headers", "user_agent"],
             minimum_matches: 3,
             confidence: 91,
-            narrative: "Reflects Meterpreter HTTP(S) transport traits such as TLV packeting, UUID tagging, and custom header handling.",
+            narrative: "Reflects Meterpreter reverse HTTP transport traits such as TLV packeting, UUID tagging, and custom header handling.",
         },
         PatternIdentity {
-            name: "metasploit-tcp-transport",
+            name: "metasploit-reverse-https-transport",
+            display_name: "Meterpreter Reverse HTTPS Transport",
             family: AttackFamily::PayloadStager,
-            category: "meterpreter-tcp-transport",
+            category: "meterpreter-reverse-https",
             sources: &["metasploit-payloads"],
-            protocols: &["tcp"],
-            indicators: &["meterpreter", "tlv", "tcp_transport", "socket", "uuid", "stageless", "stage_loader"],
+            protocols: &["https"],
+            labels: &["stager", "reverse_https", "meterpreter"],
+            indicators: &["meterpreter", "tlv", "http_transport", "cert_hash", "uuid", "custom_headers"],
             minimum_matches: 3,
             confidence: 90,
-            narrative: "Reflects Meterpreter TCP transport traits such as TLV packeting, UUID tagging, and staged socket handoff.",
+            narrative: "Reflects Meterpreter reverse HTTPS transport traits such as TLV packeting, UUID tagging, and certificate pinning hints.",
+        },
+        PatternIdentity {
+            name: "metasploit-reverse-tcp-transport",
+            display_name: "Meterpreter Reverse TCP Transport",
+            family: AttackFamily::PayloadStager,
+            category: "meterpreter-reverse-tcp",
+            sources: &["metasploit-payloads"],
+            protocols: &["tcp"],
+            labels: &["stager", "reverse_tcp", "meterpreter"],
+            indicators: &["meterpreter", "tlv", "tcp_transport", "socket", "uuid", "stage_loader"],
+            minimum_matches: 3,
+            confidence: 90,
+            narrative: "Reflects Meterpreter reverse TCP transport traits such as TLV packeting, socket handoff, and staged session setup.",
         },
         PatternIdentity {
             name: "metasploit-stager-migration",
+            display_name: "Meterpreter Stage Migration Pattern",
             family: AttackFamily::PayloadStager,
             category: "meterpreter-stage-control",
             sources: &["metasploit-payloads"],
             protocols: &["tcp", "http", "https"],
+            labels: &["stager", "migration", "meterpreter"],
             indicators: &["stage_loader", "migrate_payload", "pivot_stage_data", "reflective_payload"],
             minimum_matches: 2,
             confidence: 92,
             narrative: "Reflects staged payload and migration markers found in metasploit-payload transport and pivot code.",
+        },
+        PatternIdentity {
+            name: "androrat-mobile-control-channel",
+            display_name: "AndroRAT Mobile Control Channel",
+            family: AttackFamily::RemoteAccessTrojan,
+            category: "mobile-control-channel",
+            sources: &["AndroRAT"],
+            protocols: &["tcp", "android"],
+            labels: &["rat", "android", "control-channel"],
+            indicators: &["reverseshell2", "tcpconnection", "mainservice", "jobscheduler", "broadcastreciever"],
+            minimum_matches: 2,
+            confidence: 92,
+            narrative: "Reflects Android control-channel and persistence markers found in the local AndroRAT sources.",
+        },
+        PatternIdentity {
+            name: "androrat-surveillance-suite",
+            display_name: "AndroRAT Surveillance Suite",
+            family: AttackFamily::RemoteAccessTrojan,
+            category: "mobile-surveillance",
+            sources: &["AndroRAT"],
+            protocols: &["tcp", "android"],
+            labels: &["spyware", "rat", "surveillance"],
+            indicators: &["camerapreview", "audiomanager", "locationmanager", "videorecorder", "readsms", "readcalllogs", "newshell"],
+            minimum_matches: 2,
+            confidence: 94,
+            narrative: "Reflects Android surveillance and collection capabilities exposed in the local AndroRAT payload classes.",
+        },
+        PatternIdentity {
+            name: "thefatrat-reverse-tcp-wrapper",
+            display_name: "TheFatRat Reverse TCP Wrapper",
+            family: AttackFamily::PayloadStager,
+            category: "delivery-wrapper",
+            sources: &["TheFatRat"],
+            protocols: &["tcp"],
+            labels: &["stager", "reverse_tcp", "delivery-wrapper"],
+            indicators: &["reverse_tcp", "backdoor_apk", "power.py", "apkembed.rb"],
+            minimum_matches: 2,
+            confidence: 89,
+            narrative: "Reflects TheFatRat delivery wrapper behavior around reverse TCP payload generation and packaging.",
+        },
+        PatternIdentity {
+            name: "thefatrat-reverse-http-wrapper",
+            display_name: "TheFatRat Reverse HTTP Wrapper",
+            family: AttackFamily::PayloadStager,
+            category: "delivery-wrapper",
+            sources: &["TheFatRat"],
+            protocols: &["http"],
+            labels: &["stager", "reverse_http", "delivery-wrapper"],
+            indicators: &["reverse_http", "backdoor_apk", "power.py", "apkembed.rb"],
+            minimum_matches: 2,
+            confidence: 89,
+            narrative: "Reflects TheFatRat delivery wrapper behavior around reverse HTTP payload generation and packaging.",
+        },
+        PatternIdentity {
+            name: "thefatrat-reverse-https-wrapper",
+            display_name: "TheFatRat Reverse HTTPS Wrapper",
+            family: AttackFamily::PayloadStager,
+            category: "delivery-wrapper",
+            sources: &["TheFatRat"],
+            protocols: &["https"],
+            labels: &["stager", "reverse_https", "delivery-wrapper"],
+            indicators: &["reverse_https", "backdoor_apk", "power.py", "apkembed.rb"],
+            minimum_matches: 2,
+            confidence: 90,
+            narrative: "Reflects TheFatRat delivery wrapper behavior around reverse HTTPS payload generation and packaging.",
         },
     ]
 }
@@ -244,99 +383,267 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
     let summary = event.summary.to_ascii_lowercase();
     let fast = fast_assess_event(event);
 
-    let (family, confidence, detail) = if matches!(fast.kind, FastThreatKind::IntegrityPressure) && fast.overall_score >= 70 {
-        (
-            AttackFamily::IntegrityAttack,
-            fast.overall_score,
-            explain_fast_path("Runtime tamper or integrity pressure triggered the ASM fast path.", fast),
-        )
-    } else if matches!(fast.kind, FastThreatKind::DdosPressure) && fast.overall_score >= 80 {
-        (
-            AttackFamily::VolumetricFlood,
-            fast.overall_score,
-            explain_fast_path("Burst or saturation behavior triggered the ASM fast path.", fast),
-        )
-    } else if matches!(fast.kind, FastThreatKind::OffensiveScan) && fast.overall_score >= 70 {
-        (
-            AttackFamily::OffensiveScan,
-            fast.overall_score,
-            explain_fast_path("Reconnaissance or offensive scan pressure triggered the ASM fast path.", fast),
-        )
-    } else if let Some(pattern) = identify_pattern(&summary) {
-        (
-            pattern.family,
-            pattern.confidence.max(fast.overall_score),
-            explain_fast_path(&pattern.detail, fast),
-        )
-    } else if matches!(fast.kind, FastThreatKind::Intrusion) && fast.overall_score >= 70 {
-        (
-            AttackFamily::ExploitDelivery,
-            fast.overall_score,
-            explain_fast_path("Intrusion-oriented behavior triggered the ASM fast path.", fast),
-        )
-    } else if summary.contains("dns_tunnel") || summary.contains("high_entropy") {
-        (
-            AttackFamily::DnsTunneling,
-            92.max(fast.overall_score),
-            explain_fast_path("High-entropy DNS behavior matched tunneling heuristics.", fast),
-        )
-    } else if contains_any(&summary, &["credit_card", "us_social", "http_client_body", "file_data"]) {
-        (
-            AttackFamily::DataExfiltration,
-            91.max(fast.overall_score),
-            explain_fast_path("Sensitive outbound content matched data exfiltration heuristics.", fast),
-        )
-    } else if summary.contains("burst_flood") {
-        (
-            AttackFamily::VolumetricFlood,
-            95.max(fast.overall_score),
-            explain_fast_path("Burst-flood pattern matched volumetric traffic heuristics.", fast),
-        )
-    } else if summary.contains("oauth_token_abuse") {
-        (
-            AttackFamily::IdentityAbuse,
-            90.max(fast.overall_score),
-            explain_fast_path("Identity telemetry matched autonomous token-abuse behavior.", fast),
-        )
-    } else if summary.contains("api_scrape") {
-        (
-            AttackFamily::ApiScraping,
-            80.max(fast.overall_score),
-            explain_fast_path("Traffic resembled automated scraping of protected APIs.", fast),
-        )
-    } else if summary.contains("stage_loader") || summary.contains("payload") {
-        (
-            AttackFamily::PayloadStager,
-            88.max(fast.overall_score),
-            explain_fast_path("Delivery telemetry resembled staged exploit or loader behavior.", fast),
-        )
-    } else if summary.contains("rat") || summary.contains("beacon") {
-        (
-            AttackFamily::Beaconing,
-            84.max(fast.overall_score),
-            explain_fast_path("Behavior resembled recurring command-and-control beaconing.", fast),
-        )
-    } else if contains_any(
-        &summary,
-        &["integrity_breach", "hash_mismatch", "unsigned_change", "syscall_table", "modified_binary"],
-    ) {
-        (
-            AttackFamily::IntegrityAttack,
-            93.max(fast.overall_score),
-            explain_fast_path("Integrity telemetry indicated direct pressure on the Sentinel runtime.", fast),
-        )
-    } else {
-        (
-            AttackFamily::Unknown,
-            40.max(fast.overall_score),
-            explain_fast_path("Signal catalog did not find a strong family match.", fast),
-        )
-    };
+    let (family, confidence, recognition, detail) =
+        if matches!(fast.kind, FastThreatKind::IntegrityPressure) && fast.overall_score >= 70 {
+            (
+                AttackFamily::IntegrityAttack,
+                fast.overall_score,
+                None,
+                explain_fast_path(
+                    "Runtime tamper or integrity pressure triggered the ASM fast path.",
+                    fast,
+                ),
+            )
+        } else if matches!(fast.kind, FastThreatKind::DdosPressure) && fast.overall_score >= 80 {
+            (
+                AttackFamily::VolumetricFlood,
+                fast.overall_score,
+                None,
+                explain_fast_path(
+                    "Burst or saturation behavior triggered the ASM fast path.",
+                    fast,
+                ),
+            )
+        } else if let Some(pattern) = identify_pattern(&summary) {
+            (
+                pattern.family,
+                pattern.confidence.max(fast.overall_score),
+                Some(pattern.recognition.clone()),
+                explain_fast_path(&pattern.detail, fast),
+            )
+        } else if contains_any(
+            &summary,
+            &[
+                "masscan",
+                "async_scan",
+                "asynchronous_sweep",
+                "stateless_syn",
+                "wide_port_sweep",
+                "pps_scan",
+            ],
+        ) {
+            (
+                AttackFamily::OffensiveScan,
+                95.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-high-speed-scan",
+                    "High-Speed Asynchronous Scanner",
+                    "high-speed-recon",
+                    &["scan", "reconnaissance", "high_speed_scan", "asynchronous_sweep"],
+                    &["tcp"],
+                    &["heuristic"],
+                    "Telemetry matched high-speed asynchronous reconnaissance traits often associated with stateless scanner tooling.",
+                )),
+                explain_fast_path(
+                    "Telemetry matched high-speed asynchronous reconnaissance pressure.",
+                    fast,
+                ),
+            )
+        } else if matches!(fast.kind, FastThreatKind::OffensiveScan) && fast.overall_score >= 70 {
+            (
+                AttackFamily::OffensiveScan,
+                fast.overall_score,
+                None,
+                explain_fast_path(
+                    "Reconnaissance or offensive scan pressure triggered the ASM fast path.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("reverse_https") {
+            (
+                AttackFamily::PayloadStager,
+                90.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-reverse-https",
+                    "Reverse HTTPS Stager",
+                    "reverse-https-stager",
+                    &["stager", "reverse_https"],
+                    &["https"],
+                    &["heuristic"],
+                    "Recognized reverse HTTPS staging traits in the telemetry summary.",
+                )),
+                explain_fast_path("Telemetry resembled a reverse HTTPS stager.", fast),
+            )
+        } else if summary.contains("reverse_http") {
+            (
+                AttackFamily::PayloadStager,
+                89.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-reverse-http",
+                    "Reverse HTTP Stager",
+                    "reverse-http-stager",
+                    &["stager", "reverse_http"],
+                    &["http"],
+                    &["heuristic"],
+                    "Recognized reverse HTTP staging traits in the telemetry summary.",
+                )),
+                explain_fast_path("Telemetry resembled a reverse HTTP stager.", fast),
+            )
+        } else if summary.contains("reverse_tcp") || summary.contains("shell_reverse_tcp") {
+            (
+                AttackFamily::PayloadStager,
+                89.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-reverse-tcp",
+                    "Reverse TCP Stager",
+                    "reverse-tcp-stager",
+                    &["stager", "reverse_tcp"],
+                    &["tcp"],
+                    &["heuristic"],
+                    "Recognized reverse TCP staging traits in the telemetry summary.",
+                )),
+                explain_fast_path("Telemetry resembled a reverse TCP stager.", fast),
+            )
+        } else if matches!(fast.kind, FastThreatKind::Intrusion) && fast.overall_score >= 70 {
+            (
+                AttackFamily::ExploitDelivery,
+                fast.overall_score,
+                None,
+                explain_fast_path(
+                    "Intrusion-oriented behavior triggered the ASM fast path.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("dns_tunnel") || summary.contains("high_entropy") {
+            (
+                AttackFamily::DnsTunneling,
+                92.max(fast.overall_score),
+                None,
+                explain_fast_path(
+                    "High-entropy DNS behavior matched tunneling heuristics.",
+                    fast,
+                ),
+            )
+        } else if contains_any(
+            &summary,
+            &["credit_card", "us_social", "http_client_body", "file_data"],
+        ) {
+            (
+                AttackFamily::DataExfiltration,
+                91.max(fast.overall_score),
+                None,
+                explain_fast_path(
+                    "Sensitive outbound content matched data exfiltration heuristics.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("burst_flood") {
+            (
+                AttackFamily::VolumetricFlood,
+                95.max(fast.overall_score),
+                None,
+                explain_fast_path(
+                    "Burst-flood pattern matched volumetric traffic heuristics.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("oauth_token_abuse") {
+            (
+                AttackFamily::IdentityAbuse,
+                90.max(fast.overall_score),
+                None,
+                explain_fast_path(
+                    "Identity telemetry matched autonomous token-abuse behavior.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("api_scrape") {
+            (
+                AttackFamily::ApiScraping,
+                80.max(fast.overall_score),
+                None,
+                explain_fast_path(
+                    "Traffic resembled automated scraping of protected APIs.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("stage_loader") || summary.contains("payload") {
+            (
+                AttackFamily::PayloadStager,
+                88.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-payload-stager",
+                    "Generic Payload Stager",
+                    "payload-stager",
+                    &["stager"],
+                    &["tcp", "http", "https"],
+                    &["heuristic"],
+                    "Telemetry resembled staged payload or loader behavior.",
+                )),
+                explain_fast_path(
+                    "Delivery telemetry resembled staged exploit or loader behavior.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("spyware") {
+            (
+                AttackFamily::RemoteAccessTrojan,
+                87.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-spyware",
+                    "Spyware / Surveillance Pattern",
+                    "spyware",
+                    &["spyware", "surveillance"],
+                    &["tcp", "http", "https"],
+                    &["heuristic"],
+                    "Telemetry resembled spyware or surveillance-oriented collection behavior.",
+                )),
+                explain_fast_path(
+                    "Behavior resembled spyware or surveillance-oriented collection.",
+                    fast,
+                ),
+            )
+        } else if summary.contains("rat") || summary.contains("beacon") {
+            (
+                AttackFamily::Beaconing,
+                84.max(fast.overall_score),
+                Some(heuristic_recognition(
+                    "heuristic-rat-beacon",
+                    "Remote Access Beacon",
+                    "remote-access-beacon",
+                    &["rat", "beacon"],
+                    &["tcp", "http", "https", "dns"],
+                    &["heuristic"],
+                    "Behavior resembled recurring command-and-control beaconing.",
+                )),
+                explain_fast_path(
+                    "Behavior resembled recurring command-and-control beaconing.",
+                    fast,
+                ),
+            )
+        } else if contains_any(
+            &summary,
+            &[
+                "integrity_breach",
+                "hash_mismatch",
+                "unsigned_change",
+                "syscall_table",
+                "modified_binary",
+            ],
+        ) {
+            (
+                AttackFamily::IntegrityAttack,
+                93.max(fast.overall_score),
+                None,
+                explain_fast_path(
+                    "Integrity telemetry indicated direct pressure on the Sentinel runtime.",
+                    fast,
+                ),
+            )
+        } else {
+            (
+                AttackFamily::Unknown,
+                40.max(fast.overall_score),
+                None,
+                explain_fast_path("Signal catalog did not find a strong family match.", fast),
+            )
+        };
 
     ThreatSignal {
         source_name: event.source.clone(),
         family,
         confidence,
+        recognition,
         detail,
     }
 }
@@ -362,16 +669,20 @@ pub fn identify_pattern(summary: &str) -> Option<PatternMatch> {
 
         let confidence = identity
             .confidence
-            .saturating_add(((matched_indicators.len() - identity.minimum_matches) as u8).saturating_mul(3))
+            .saturating_add(
+                ((matched_indicators.len() - identity.minimum_matches) as u8).saturating_mul(3),
+            )
             .min(99);
 
         let detail = format!(
-            "pattern_identity={} category={} family={} sources={} protocols={} matched={} narrative={}",
+            "pattern_identity={} display_name={} category={} family={} sources={} protocols={} labels={} matched={} narrative={}",
             identity.name,
+            identity.display_name,
             identity.category,
             identity.family.as_str(),
             identity.sources.join(","),
             identity.protocols.join(","),
+            identity.labels.join(","),
             matched_indicators.join(","),
             identity.narrative
         );
@@ -379,15 +690,35 @@ pub fn identify_pattern(summary: &str) -> Option<PatternMatch> {
         let pattern_match = PatternMatch {
             identity_name: identity.name,
             family: identity.family,
+            recognition: ThreatRecognition {
+                identity: identity.name.to_string(),
+                display_name: identity.display_name.to_string(),
+                category: identity.category.to_string(),
+                labels: identity
+                    .labels
+                    .iter()
+                    .map(|item| (*item).to_string())
+                    .collect(),
+                protocols: identity
+                    .protocols
+                    .iter()
+                    .map(|item| (*item).to_string())
+                    .collect(),
+                sources: identity
+                    .sources
+                    .iter()
+                    .map(|item| (*item).to_string())
+                    .collect(),
+                summary: identity.narrative.to_string(),
+            },
             matched_indicators,
             confidence,
             detail,
         };
 
-        if best_match
-            .as_ref()
-            .map_or(true, |current: &PatternMatch| pattern_match.confidence > current.confidence)
-        {
+        if best_match.as_ref().map_or(true, |current: &PatternMatch| {
+            pattern_match.confidence > current.confidence
+        }) {
             best_match = Some(pattern_match);
         }
     }
@@ -399,8 +730,25 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     let summary = event.summary.to_ascii_lowercase();
     let mut features = FastPathFeatures::default();
 
-    if contains_any(&summary, &["scan", "recon", "probe", "fingerprint", "syn", "port_sweep"]) {
+    if contains_any(
+        &summary,
+        &["scan", "recon", "probe", "fingerprint", "syn", "port_sweep"],
+    ) {
         features.scan_pressure = features.scan_pressure.saturating_add(65);
+    }
+    if contains_any(
+        &summary,
+        &[
+            "masscan",
+            "async_scan",
+            "asynchronous_sweep",
+            "stateless_syn",
+            "wide_port_sweep",
+            "pps_scan",
+        ],
+    ) {
+        features.scan_pressure = features.scan_pressure.saturating_add(25);
+        features.entropy_pressure = features.entropy_pressure.saturating_add(10);
     }
     if contains_any(
         &summary,
@@ -426,10 +774,16 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     ) {
         features.intrusion_pressure = features.intrusion_pressure.saturating_add(70);
     }
-    if contains_any(&summary, &["burst_flood", "ddos", "flood", "pps_spike", "aisuru"]) {
+    if contains_any(
+        &summary,
+        &["burst_flood", "ddos", "flood", "pps_spike", "aisuru"],
+    ) {
         features.ddos_pressure = features.ddos_pressure.saturating_add(80);
     }
-    if contains_any(&summary, &["oauth", "identity", "token", "impossible-travel"]) {
+    if contains_any(
+        &summary,
+        &["oauth", "identity", "token", "impossible-travel"],
+    ) {
         features.identity_pressure = features.identity_pressure.saturating_add(60);
     }
     if contains_any(
@@ -461,6 +815,26 @@ fn contains_any(summary: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| summary.contains(needle))
 }
 
+fn heuristic_recognition(
+    identity: &str,
+    display_name: &str,
+    category: &str,
+    labels: &[&str],
+    protocols: &[&str],
+    sources: &[&str],
+    summary: &str,
+) -> ThreatRecognition {
+    ThreatRecognition {
+        identity: identity.to_string(),
+        display_name: display_name.to_string(),
+        category: category.to_string(),
+        labels: labels.iter().map(|item| (*item).to_string()).collect(),
+        protocols: protocols.iter().map(|item| (*item).to_string()).collect(),
+        sources: sources.iter().map(|item| (*item).to_string()).collect(),
+        summary: summary.to_string(),
+    }
+}
+
 fn explain_fast_path(prefix: &str, fast: FastPathDecision) -> String {
     format!(
         "{} fast_path.kind={} stage={} score={} scan={} intrusion={} integrity={} ddos={} tick={}",
@@ -484,20 +858,30 @@ mod tests {
 
     #[test]
     fn exposes_snort_and_metasploit_pattern_identities() {
-        let names: Vec<_> = seed_pattern_identities().into_iter().map(|item| item.name).collect();
+        let names: Vec<_> = seed_pattern_identities()
+            .into_iter()
+            .map(|item| item.name)
+            .collect();
 
         assert!(names.contains(&"snort3-malware-cnc"));
-        assert!(names.contains(&"metasploit-http-transport"));
+        assert!(names.contains(&"metasploit-reverse-http-transport"));
         assert!(names.contains(&"suricata-heartbeat-anomaly"));
+        assert!(names.contains(&"research-high-speed-asynchronous-scan"));
+        assert!(names.contains(&"androrat-surveillance-suite"));
+        assert!(names.contains(&"thefatrat-reverse-https-wrapper"));
     }
 
     #[test]
-    fn identifies_metasploit_http_transport_patterns() {
+    fn identifies_metasploit_reverse_http_transport_patterns() {
         let matched = identify_pattern("meterpreter tlv http_transport uuid custom_headers")
             .expect("metasploit transport should match");
 
-        assert_eq!(matched.identity_name, "metasploit-http-transport");
+        assert_eq!(matched.identity_name, "metasploit-reverse-http-transport");
         assert_eq!(matched.family, AttackFamily::PayloadStager);
+        assert!(matched
+            .recognition
+            .labels
+            .contains(&"reverse_http".to_string()));
     }
 
     #[test]
@@ -524,5 +908,44 @@ mod tests {
 
         assert_eq!(signal.family, AttackFamily::ExploitDelivery);
         assert!(signal.detail.contains("suricata-heartbeat-anomaly"));
+    }
+
+    #[test]
+    fn identifies_androrat_surveillance_patterns() {
+        let matched = identify_pattern("camerapreview readsms videorecorder locationmanager")
+            .expect("androrat surveillance should match");
+
+        assert_eq!(matched.identity_name, "androrat-surveillance-suite");
+        assert!(matched.recognition.labels.contains(&"spyware".to_string()));
+    }
+
+    #[test]
+    fn detects_thefatrat_reverse_https_wrapper() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Flow,
+            source: "payload-host".to_string(),
+            summary: "backdoor_apk reverse_https apkembed.rb meterpreter".to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::PayloadStager);
+        assert_eq!(recognition.display_name, "TheFatRat Reverse HTTPS Wrapper");
+        assert!(recognition.labels.contains(&"reverse_https".to_string()));
+    }
+
+    #[test]
+    fn recognizes_high_speed_asynchronous_scan_pressure() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "198.51.100.22".to_string(),
+            summary: "masscan async_scan stateless_syn wide_port_sweep pps_scan".to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::OffensiveScan);
+        assert_eq!(recognition.display_name, "High-Speed Asynchronous Scan Pattern");
+        assert!(recognition.labels.contains(&"high_speed_scan".to_string()));
     }
 }

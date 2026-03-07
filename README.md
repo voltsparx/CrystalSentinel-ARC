@@ -88,6 +88,9 @@ than a single detector.
 - ASM is the lowest-latency sensing and fast-path decision layer. It acts as a
   defensive nervous system for timing-critical pressure signals such as
   offensive scans, intrusion bursts, and DDoS pressure.
+- The native fast path can grow toward bounded zero-copy or direct-to-wire
+  defensive paths, but only under the same stability-first and safety-aware
+  controls as the rest of the platform.
 
 When pressure becomes severe, the system is designed to respond in this order:
 
@@ -203,6 +206,8 @@ areas for runtime applications, reusable Rust crates, detection content,
 operational material, and validation assets.
 
 See `docs/architecture/REPOSITORY-STRUCTURE.md` for the full layout.
+See `docs/implementation/V1-COVERAGE.md` for the current v1.0
+implemented-versus-future comparison against the self-assessments.
 
 ## System Outline
 

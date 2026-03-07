@@ -76,6 +76,21 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
             ],
         },
         ScanTypeLesson {
+            name: "Recon Friction Veil",
+            classification: "high-speed-recon-friction",
+            harmless: true,
+            summary: "Recon Friction Veil is a harmless decoy layer that makes high-speed scanners spend more time, retries, and confidence on low-value uncertainty.",
+            how_it_works: &[
+                "It adds bounded ambiguity around scanner-visible presence and timing.",
+                "It is especially useful during mass-scan style pressure where fast tooling expects rigid answers.",
+                "It works with Phantom-Scan and IDF windows to increase reconnaissance cost while keeping internal visibility clear.",
+            ],
+            safety_contract: &[
+                "It must stay inert, internally truth-tagged, and health-bounded.",
+                "It exists to raise reconnaissance cost and reduce hostile confidence, not to damage or weaponize traffic.",
+            ],
+        },
+        ScanTypeLesson {
             name: "SARS",
             classification: "adaptive-response-layer",
             harmless: false,
@@ -133,7 +148,10 @@ mod tests {
 
     #[test]
     fn harmless_catalog_excludes_sars() {
-        let names: Vec<_> = harmless_scan_types().into_iter().map(|item| item.name).collect();
+        let names: Vec<_> = harmless_scan_types()
+            .into_iter()
+            .map(|item| item.name)
+            .collect();
         assert!(!names.contains(&"SARS"));
     }
 
@@ -144,5 +162,12 @@ mod tests {
             .how_it_works
             .iter()
             .any(|item| item.contains("vary its observation rhythm")));
+    }
+
+    #[test]
+    fn recon_friction_is_marked_harmless() {
+        let lesson =
+            find_lesson("Recon Friction Veil").expect("recon friction lesson should exist");
+        assert!(lesson.harmless);
     }
 }

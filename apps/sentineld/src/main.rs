@@ -2,8 +2,8 @@
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use sentinel_correlation::CorrelationEngine;
 use sentinel_config::RuntimeConfig;
+use sentinel_correlation::CorrelationEngine;
 use sentinel_detection::{seed_framework_catalog, seed_intel_sources};
 use sentinel_flow::{FlowKey, FlowTracker};
 use sentinel_native_bridge::native_layer_manifest;
@@ -101,7 +101,10 @@ fn main() {
 
     match run_isolated("correlator", || CorrelationEngine::correlate(&decisions)) {
         Ok(incidents) => {
-            println!("engine: correlator status=ready incidents={}", incidents.len());
+            println!(
+                "engine: correlator status=ready incidents={}",
+                incidents.len()
+            );
 
             match run_isolated("reporters", || ReporterEngine::render_all(&incidents)) {
                 Ok(reports) => {

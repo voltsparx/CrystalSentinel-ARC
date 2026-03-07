@@ -120,11 +120,23 @@ pub struct HealthSnapshot {
     pub passive_only: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ThreatRecognition {
+    pub identity: String,
+    pub display_name: String,
+    pub category: String,
+    pub labels: Vec<String>,
+    pub protocols: Vec<String>,
+    pub sources: Vec<String>,
+    pub summary: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct ThreatSignal {
     pub source_name: String,
     pub family: AttackFamily,
     pub confidence: u8,
+    pub recognition: Option<ThreatRecognition>,
     pub detail: String,
 }
 

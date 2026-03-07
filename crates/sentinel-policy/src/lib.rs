@@ -1,7 +1,9 @@
 #![forbid(unsafe_code)]
 
 use sentinel_bio_response::BioResponseGuard;
-use sentinel_common::{AttackFamily, HealthSnapshot, MitigationStage, ThreatAssessment, ThreatSignal};
+use sentinel_common::{
+    AttackFamily, HealthSnapshot, MitigationStage, ThreatAssessment, ThreatSignal,
+};
 
 #[derive(Default)]
 pub struct PolicyEngine {
@@ -30,10 +32,12 @@ impl PolicyEngine {
     fn base_stage_for(&self, signal: &ThreatSignal) -> MitigationStage {
         match signal.family {
             AttackFamily::OffensiveScan => MitigationStage::Throttle,
-            AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack => MitigationStage::Isolate,
-            AttackFamily::DnsTunneling | AttackFamily::DataExfiltration | AttackFamily::IdentityAbuse => {
-                MitigationStage::Contain
+            AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack => {
+                MitigationStage::Isolate
             }
+            AttackFamily::DnsTunneling
+            | AttackFamily::DataExfiltration
+            | AttackFamily::IdentityAbuse => MitigationStage::Contain,
             AttackFamily::PayloadStager
             | AttackFamily::ExploitDelivery
             | AttackFamily::RemoteAccessTrojan
@@ -62,6 +66,7 @@ mod tests {
             source_name: "198.51.100.10".to_string(),
             family: AttackFamily::VolumetricFlood,
             confidence: 99,
+            recognition: None,
             detail: "burst".to_string(),
         };
         let assessment = engine.assess(

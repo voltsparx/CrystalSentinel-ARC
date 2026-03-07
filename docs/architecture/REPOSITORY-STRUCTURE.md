@@ -74,6 +74,7 @@ binary or one unreadable folder.
 |   |-- api/
 |   |-- architecture/
 |   |-- compliance/
+|   |-- implementation/
 |   |-- operations/
 |   |-- research/
 |   |-- scenarios/
@@ -159,12 +160,18 @@ binary or one unreadable folder.
 ## Native Layer Boundaries
 
 - `native/c/` is reserved for resource guards, packet-adjacent system helpers,
-  and OS-facing primitives.
-- `native/cpp/` is reserved for stateful classifiers and richer attack-template
-  logic where C++ modeling is useful.
+  descriptor-safe compatibility shims, and other OS-facing primitives.
+- `native/cpp/` is reserved for stateful classifiers, attack-template models,
+  and richer behavioral correlation paths where C++ modeling is useful.
 - `native/asm/` is reserved for timing primitives and ultra-low-latency
-  fast-path helpers.
+  fast-path helpers, with future room for bounded zero-copy defensive
+  packet paths.
 - `native/include/` contains shared headers for native components.
+
+The native layers are part of the intended layered defense strategy. In v1.0,
+ASM is the only native path already linked into the active runtime. C and C++
+remain scaffolded so the repo can acknowledge their role without pretending
+they are already wired.
 
 ## Safety and Fail-Safe Boundaries
 
@@ -181,6 +188,9 @@ binary or one unreadable folder.
   runtime instability inside the protector itself.
 - ASM fast-path logic exists to accelerate defensive sensing and last-line
   fail-safe support under heavy pressure, not to introduce offensive behavior.
+- Kernel-bypass or direct-to-wire ideas are constrained to bounded defensive
+  sensing and protection paths and must remain gated by health, stability, and
+  safety policy.
 - Source cut-off or isolation is reserved for bounded containment when
   continued contact risks overwhelming or damaging the defended environment.
 

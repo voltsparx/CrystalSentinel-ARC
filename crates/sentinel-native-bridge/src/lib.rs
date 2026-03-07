@@ -49,21 +49,21 @@ pub fn native_layer_manifest() -> Vec<NativeLayerSpec> {
         NativeLayerSpec {
             language: NativeLanguage::C,
             library: "sentinel-native-c",
-            responsibility: "Resource guards and OS-facing packet helpers.",
+            responsibility: "Resource guards, descriptor-safe compatibility shims, and OS-facing packet helpers.",
             entrypoint: "sentinel_c_resource_guard",
             status: NativeLayerStatus::Scaffolded,
         },
         NativeLayerSpec {
             language: NativeLanguage::Cpp,
             library: "sentinel-native-cpp",
-            responsibility: "Stateful classifiers and attack-template modeling.",
+            responsibility: "Stateful classifiers, behavioral models, and attack-template modeling.",
             entrypoint: "sentinel_cpp_classify",
             status: NativeLayerStatus::Scaffolded,
         },
         NativeLayerSpec {
             language: NativeLanguage::Asm,
             library: "sentinel-native-asm",
-            responsibility: "Linked timing primitives and fast-path pressure scoring.",
+            responsibility: "Linked timing primitives, fast-path pressure scoring, and bounded direct-to-wire readiness for defensive paths.",
             entrypoint: "fast_path_assess",
             status: NativeLayerStatus::Linked,
         },
@@ -170,8 +170,17 @@ pub fn fast_path_assess(features: FastPathFeatures) -> FastPathDecision {
     }
 }
 
-fn dominant_kind(scan_score: u16, intrusion_score: u16, integrity_score: u16, ddos_score: u16) -> (FastThreatKind, u16) {
-    if integrity_score >= ddos_score && integrity_score >= intrusion_score && integrity_score >= scan_score && integrity_score > 0 {
+fn dominant_kind(
+    scan_score: u16,
+    intrusion_score: u16,
+    integrity_score: u16,
+    ddos_score: u16,
+) -> (FastThreatKind, u16) {
+    if integrity_score >= ddos_score
+        && integrity_score >= intrusion_score
+        && integrity_score >= scan_score
+        && integrity_score > 0
+    {
         (FastThreatKind::IntegrityPressure, integrity_score)
     } else if ddos_score >= intrusion_score && ddos_score >= scan_score && ddos_score > 0 {
         (FastThreatKind::DdosPressure, ddos_score)

@@ -6,7 +6,11 @@ use sentinel_common::{HealthSnapshot, MitigationStage};
 pub struct BioResponseGuard;
 
 impl BioResponseGuard {
-    pub fn cap_stage(&self, health: &HealthSnapshot, requested: MitigationStage) -> MitigationStage {
+    pub fn cap_stage(
+        &self,
+        health: &HealthSnapshot,
+        requested: MitigationStage,
+    ) -> MitigationStage {
         if health.passive_only {
             return MitigationStage::Observe;
         }
@@ -36,7 +40,9 @@ mod tests {
             ..HealthSnapshot::default()
         };
 
-        assert_eq!(guard.cap_stage(&health, MitigationStage::Isolate), MitigationStage::Observe);
+        assert_eq!(
+            guard.cap_stage(&health, MitigationStage::Isolate),
+            MitigationStage::Observe
+        );
     }
 }
-

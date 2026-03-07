@@ -75,10 +75,12 @@ impl ShadowVault {
 
     pub fn plan_restoration(&self, summary: &str) -> Option<RestorationPlan> {
         let normalized = summary.to_ascii_lowercase();
-        let artifact = self
-            .artifacts
-            .iter()
-            .find(|artifact| artifact.aliases.iter().any(|alias| normalized.contains(alias)))?;
+        let artifact = self.artifacts.iter().find(|artifact| {
+            artifact
+                .aliases
+                .iter()
+                .any(|alias| normalized.contains(alias))
+        })?;
 
         let mode = match artifact.criticality {
             ArtifactCriticality::Runtime => RestorationMode::RestartAndRestore,
@@ -112,14 +114,24 @@ pub fn seed_vault_artifacts() -> Vec<VaultArtifact> {
             path: "apps/sentineld/bin/sentineld",
             baseline_hash: "sha256:sentinel-runtime-baseline",
             criticality: ArtifactCriticality::Runtime,
-            aliases: &["sentineld", "sentinel-self", "runtime_binary", "runtime tamper"],
+            aliases: &[
+                "sentineld",
+                "sentinel-self",
+                "runtime_binary",
+                "runtime tamper",
+            ],
         },
         VaultArtifact {
             artifact_id: "sentinel-config",
             path: "configs/base/runtime.toml",
             baseline_hash: "sha256:sentinel-config-baseline",
             criticality: ArtifactCriticality::Configuration,
-            aliases: &["runtime config", "system_config", "sentinel-config", "config drift"],
+            aliases: &[
+                "runtime config",
+                "system_config",
+                "sentinel-config",
+                "config drift",
+            ],
         },
         VaultArtifact {
             artifact_id: "kernel-runtime-library",

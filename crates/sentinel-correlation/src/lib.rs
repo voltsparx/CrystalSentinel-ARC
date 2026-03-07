@@ -31,6 +31,9 @@ pub struct CorrelatedIncident {
     pub primary_source: String,
     pub sources: Vec<String>,
     pub families: Vec<String>,
+    pub recognitions: Vec<String>,
+    pub recognition_labels: Vec<String>,
+    pub recognition_protocols: Vec<String>,
     pub highest_stage: MitigationStage,
     pub severity: IncidentSeverity,
     pub prevailing_posture: String,
@@ -64,8 +67,15 @@ impl CorrelationEngine {
     }
 }
 
-fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>) -> CorrelatedIncident {
+fn correlate_bucket(
+    index: usize,
+    source: String,
+    bucket: Vec<&RuntimeDecision>,
+) -> CorrelatedIncident {
     let mut families = Vec::new();
+    let mut recognitions = Vec::new();
+    let mut recognition_labels = Vec::new();
+    let mut recognition_protocols = Vec::new();
     let mut highest_stage = MitigationStage::Observe;
     let mut max_confidence = 0u8;
     let mut prevailing_posture = "baseline-observe".to_string();
@@ -79,6 +89,21 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
         let family = decision.assessment.signal.family.as_str().to_string();
         if !families.contains(&family) {
             families.push(family);
+        }
+        if let Some(recognition) = &decision.assessment.signal.recognition {
+            if !recognitions.contains(&recognition.display_name) {
+                recognitions.push(recognition.display_name.clone());
+            }
+            for label in &recognition.labels {
+                if !recognition_labels.contains(label) {
+                    recognition_labels.push(label.clone());
+                }
+            }
+            for protocol in &recognition.protocols {
+                if !recognition_protocols.contains(protocol) {
+                    recognition_protocols.push(protocol.clone());
+                }
+            }
         }
 
         if decision.assessment.stage.rank() >= highest_stage.rank() {
@@ -127,9 +152,23 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
             .join(", ");
 
         timeline.push(format!(
-            "{}. family={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
+            "{}. family={} recognized={} labels={} posture={} stage={} fast_kind={} actions=[{}] decoy={} detail={} rationale={}",
             event_index + 1,
             decision.assessment.signal.family.as_str(),
+            decision
+                .assessment
+                .signal
+                .recognition
+                .as_ref()
+                .map(|recognition| recognition.display_name.as_str())
+                .unwrap_or("none"),
+            decision
+                .assessment
+                .signal
+                .recognition
+                .as_ref()
+                .map(|recognition| recognition.labels.join(","))
+                .unwrap_or_else(|| "none".to_string()),
             decision.posture.as_str(),
             decision.assessment.stage.as_str(),
             decision.fast_path.kind.as_str(),
@@ -149,6 +188,8 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
     let human_summary = human_summary_for(
         &source,
         &family_list,
+        recognitions.as_slice(),
+        recognition_labels.as_slice(),
         prevailing_posture.as_str(),
         highest_stage,
         stability_priority,
@@ -156,13 +197,28 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
         recovery_voice.as_deref(),
     );
     let operator_summary = format!(
-        "source={} severity={} stage={} posture={} stability_first={} families={} phantom={} recovery={} timeline_events={}",
+        "source={} severity={} stage={} posture={} stability_first={} families={} recognized={} labels={} protocols={} phantom={} recovery={} timeline_events={}",
         source,
         severity.as_str(),
         highest_stage.as_str(),
         prevailing_posture,
         stability_priority,
         family_list,
+        if recognitions.is_empty() {
+            "none".to_string()
+        } else {
+            recognitions.join(", ")
+        },
+        if recognition_labels.is_empty() {
+            "none".to_string()
+        } else {
+            recognition_labels.join(", ")
+        },
+        if recognition_protocols.is_empty() {
+            "none".to_string()
+        } else {
+            recognition_protocols.join(", ")
+        },
         phantom_summary.as_deref().unwrap_or("none"),
         recovery_summary.as_deref().unwrap_or("none"),
         timeline.len()
@@ -173,6 +229,9 @@ fn correlate_bucket(index: usize, source: String, bucket: Vec<&RuntimeDecision>)
         primary_source: source.clone(),
         sources: vec![source],
         families,
+        recognitions,
+        recognition_labels,
+        recognition_protocols,
         highest_stage,
         severity,
         prevailing_posture,
@@ -204,12 +263,23 @@ fn severity_for(stage: MitigationStage, max_confidence: u8) -> IncidentSeverity 
 fn human_summary_for(
     source: &str,
     families: &str,
+    recognitions: &[String],
+    recognition_labels: &[String],
     posture: &str,
     stage: MitigationStage,
     stability_priority: bool,
     phantom_summary: Option<&str>,
     recovery_voice: Option<&str>,
 ) -> String {
+    let recognition_line = if recognitions.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " It was recognized as {} with labels {}.",
+            recognitions.join(", "),
+            recognition_labels.join(", ")
+        )
+    };
     let stability_line = if stability_priority {
         " It kept service stability ahead of aggressive action."
     } else {
@@ -223,7 +293,7 @@ fn human_summary_for(
         .unwrap_or_default();
 
     format!(
-        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{stability_line}{phantom_line}{recovery_line}",
+        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{phantom_line}{recovery_line}",
         stage = stage.as_str()
     )
 }

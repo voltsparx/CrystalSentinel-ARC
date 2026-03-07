@@ -7,4 +7,3 @@ fn main() {
     println!("registered intel sources: {}", seed_intel_sources().len());
     println!("planned responsibilities: investigations, policy review, source inventory");
 }
-

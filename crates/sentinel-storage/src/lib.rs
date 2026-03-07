@@ -26,4 +26,3 @@ impl MemoryStore {
         self.records.len()
     }
 }
-

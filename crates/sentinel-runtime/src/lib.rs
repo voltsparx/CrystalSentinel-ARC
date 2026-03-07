@@ -128,8 +128,9 @@ impl SituationAwareness {
         let fragility = derive_fragility(&summary, &health);
         let integrity = derive_integrity_state(&summary, signal.family.clone(), fast_path, &health);
         let saturation = derive_saturation(fast_path, &health);
-        let automation_limited =
-            health.passive_only || matches!(fragility, FragilityLevel::Critical) || matches!(integrity, IntegrityState::Critical);
+        let automation_limited = health.passive_only
+            || matches!(fragility, FragilityLevel::Critical)
+            || matches!(integrity, IntegrityState::Critical);
 
         Self {
             fragility,
@@ -176,7 +177,12 @@ impl SentinelRuntime {
         let awareness = SituationAwareness::from_inputs(config, event, &signal, fast_path);
         let mut assessment = self.policy.assess(signal, health.clone());
 
-        apply_runtime_bounds(&mut assessment, config, &awareness, integrity_assessment.as_ref());
+        apply_runtime_bounds(
+            &mut assessment,
+            config,
+            &awareness,
+            integrity_assessment.as_ref(),
+        );
 
         let posture = select_posture(&assessment, &awareness, fast_path);
         apply_posture_bounds(&mut assessment, posture, &awareness);
@@ -224,7 +230,10 @@ fn effective_health(config: &RuntimeConfig, health: &HealthSnapshot) -> HealthSn
 
 fn derive_fragility(summary: &str, health: &HealthSnapshot) -> FragilityLevel {
     if health.passive_only
-        || contains_any(summary, &["fragile", "medical", "plc", "industrial", "safety-critical"])
+        || contains_any(
+            summary,
+            &["fragile", "medical", "plc", "industrial", "safety-critical"],
+        )
         || health.thermal_c >= 90
     {
         FragilityLevel::Critical
@@ -247,7 +256,10 @@ fn derive_integrity_state(
 ) -> IntegrityState {
     if matches!(family, AttackFamily::IntegrityAttack)
         || matches!(fast_path.kind, FastThreatKind::IntegrityPressure)
-        || contains_any(summary, &["integrity_breach", "tamper", "ptrace", "debug", "hook"])
+        || contains_any(
+            summary,
+            &["integrity_breach", "tamper", "ptrace", "debug", "hook"],
+        )
     {
         if health.passive_only || health.cpu_load_pct >= 90 || health.memory_load_pct >= 90 {
             IntegrityState::Critical
@@ -316,8 +328,10 @@ fn select_posture(
     } else if matches!(
         assessment.signal.family,
         AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack
-    ) || matches!(fast_path.kind, FastThreatKind::DdosPressure | FastThreatKind::IntegrityPressure)
-    {
+    ) || matches!(
+        fast_path.kind,
+        FastThreatKind::DdosPressure | FastThreatKind::IntegrityPressure
+    ) {
         RuntimePosture::ProtectiveIsolation
     } else if matches!(assessment.signal.family, AttackFamily::OffensiveScan)
         || (matches!(assessment.signal.family, AttackFamily::Unknown)
@@ -336,14 +350,24 @@ fn select_posture(
     }
 }
 
-fn apply_posture_bounds(assessment: &mut ThreatAssessment, posture: RuntimePosture, awareness: &SituationAwareness) {
+fn apply_posture_bounds(
+    assessment: &mut ThreatAssessment,
+    posture: RuntimePosture,
+    awareness: &SituationAwareness,
+) {
     match posture {
         RuntimePosture::DefensiveHibernation => {
             assessment.stage = MitigationStage::Observe;
             append_rationale(assessment, "posture=defensive-hibernation");
         }
-        RuntimePosture::ProtectiveIsolation if matches!(awareness.fragility, FragilityLevel::Critical) => {
-            cap_stage(assessment, MitigationStage::Contain, "protective-isolation-fragility-cap");
+        RuntimePosture::ProtectiveIsolation
+            if matches!(awareness.fragility, FragilityLevel::Critical) =>
+        {
+            cap_stage(
+                assessment,
+                MitigationStage::Contain,
+                "protective-isolation-fragility-cap",
+            );
         }
         _ => {}
     }
@@ -376,7 +400,10 @@ fn adapt_plan(
             if !matches!(awareness.integrity, IntegrityState::Healthy) {
                 push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
             }
-            plan.narrative = format!("Bounded containment posture applied. {} awareness={}", plan.narrative, awareness.summary);
+            plan.narrative = format!(
+                "Bounded containment posture applied. {} awareness={}",
+                plan.narrative, awareness.summary
+            );
         }
         RuntimePosture::ProtectiveIsolation => {
             push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
@@ -413,6 +440,13 @@ fn adapt_plan(
         if decoy
             .primitives
             .iter()
+            .any(|primitive| matches!(primitive, DecoyPrimitive::ReconFrictionVeil))
+        {
+            push_unique(&mut plan.actions, ResponseAction::EnableReconFrictionVeil);
+        }
+        if decoy
+            .primitives
+            .iter()
             .any(|primitive| matches!(primitive, DecoyPrimitive::CadenceRandomizer))
         {
             push_unique(&mut plan.actions, ResponseAction::EnableCadenceRandomizer);
@@ -422,7 +456,10 @@ fn adapt_plan(
             .iter()
             .any(|primitive| matches!(primitive, DecoyPrimitive::PhantomRhythmRandomizer))
         {
-            push_unique(&mut plan.actions, ResponseAction::EnablePhantomRhythmRandomizer);
+            push_unique(
+                &mut plan.actions,
+                ResponseAction::EnablePhantomRhythmRandomizer,
+            );
         }
         if decoy
             .primitives
@@ -439,7 +476,10 @@ fn adapt_plan(
 
         if integrity.restoration.is_some() {
             push_unique(&mut plan.actions, ResponseAction::LockArtifact);
-            push_unique(&mut plan.actions, ResponseAction::SuspendCompromisedWorkload);
+            push_unique(
+                &mut plan.actions,
+                ResponseAction::SuspendCompromisedWorkload,
+            );
             push_unique(&mut plan.actions, ResponseAction::RestoreFromShadowVault);
         }
 
@@ -456,7 +496,10 @@ fn adapt_plan(
                 push_unique(&mut plan.actions, ResponseAction::StartFastRecovery);
             }
             RecoveryMode::DeepHeal => {
-                push_unique(&mut plan.actions, ResponseAction::EnterDeepHealStabilityMode);
+                push_unique(
+                    &mut plan.actions,
+                    ResponseAction::EnterDeepHealStabilityMode,
+                );
                 push_unique(&mut plan.actions, ResponseAction::ResumeServicesGradually);
                 push_unique(&mut plan.actions, ResponseAction::LimitAutomation);
                 push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
@@ -483,7 +526,9 @@ fn teaching_hint_for(
             find_lesson("SARS").map(|lesson| lesson.summary)
         }
         RuntimePosture::DefensiveHibernation => find_lesson("SHKE").map(|lesson| lesson.summary),
-        RuntimePosture::BaselineObserve if matches!(assessment.signal.family, AttackFamily::OffensiveScan) => {
+        RuntimePosture::BaselineObserve
+            if matches!(assessment.signal.family, AttackFamily::OffensiveScan) =>
+        {
             find_lesson("Phantom-Scan").map(|lesson| lesson.summary)
         }
         _ => None,
@@ -565,14 +610,30 @@ mod tests {
 
         assert_eq!(decision.posture, RuntimePosture::DecoyFirstCapture);
         assert!(decision.decoy_plan.is_some());
-        assert!(decision.plan.actions.contains(&ResponseAction::TriggerIdfWindow));
-        assert!(decision.plan.actions.contains(&ResponseAction::EnableAmbientDecoyMist));
-        assert!(decision.plan.actions.contains(&ResponseAction::EnableCadenceRandomizer));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::TriggerIdfWindow));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::EnableAmbientDecoyMist));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::EnableReconFrictionVeil));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::EnableCadenceRandomizer));
         assert!(decision
             .plan
             .actions
             .contains(&ResponseAction::EnablePhantomRhythmRandomizer));
-        assert!(decision.plan.actions.contains(&ResponseAction::FocusPhantomObservation));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::FocusPhantomObservation));
         assert!(decision
             .decoy_plan
             .as_ref()
@@ -599,9 +660,18 @@ mod tests {
 
         assert_eq!(decision.posture, RuntimePosture::DefensiveHibernation);
         assert_eq!(decision.assessment.stage, MitigationStage::Observe);
-        assert!(decision.plan.actions.contains(&ResponseAction::VerifySelfIntegrity));
-        assert!(decision.plan.actions.contains(&ResponseAction::VerifyArtifactBaseline));
-        assert!(decision.plan.actions.contains(&ResponseAction::RequireOperatorApproval));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::VerifySelfIntegrity));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::VerifyArtifactBaseline));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::RequireOperatorApproval));
     }
 
     #[test]
@@ -651,9 +721,18 @@ mod tests {
                 .mode,
             super::RecoveryMode::FastRecovery
         );
-        assert!(decision.plan.actions.contains(&ResponseAction::RestoreFromShadowVault));
-        assert!(decision.plan.actions.contains(&ResponseAction::LockArtifact));
-        assert!(decision.plan.actions.contains(&ResponseAction::StartFastRecovery));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::RestoreFromShadowVault));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::LockArtifact));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::StartFastRecovery));
     }
 
     #[test]

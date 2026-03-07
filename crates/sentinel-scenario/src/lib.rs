@@ -22,7 +22,8 @@ pub fn seed_scenarios() -> Vec<ScenarioDefinition> {
             name: "identity-abuse-containment",
             protected_asset: "auth-api",
             expected_family: AttackFamily::IdentityAbuse,
-            success_criteria: "Contain impossible-travel or token abuse without blocking valid users.",
+            success_criteria:
+                "Contain impossible-travel or token abuse without blocking valid users.",
         },
         ScenarioDefinition {
             name: "dns-tunnel-escalation",
@@ -32,4 +33,3 @@ pub fn seed_scenarios() -> Vec<ScenarioDefinition> {
         },
     ]
 }
-

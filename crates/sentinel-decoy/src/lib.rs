@@ -8,6 +8,7 @@ pub enum DecoyPrimitive {
     AmbientMist,
     IdfWindow,
     SpotMimicry,
+    ReconFrictionVeil,
     CadenceRandomizer,
     PhantomRhythmRandomizer,
 }
@@ -18,6 +19,7 @@ impl DecoyPrimitive {
             Self::AmbientMist => "ambient-mist",
             Self::IdfWindow => "idf-window",
             Self::SpotMimicry => "spot-mimicry",
+            Self::ReconFrictionVeil => "recon-friction-veil",
             Self::CadenceRandomizer => "cadence-randomizer",
             Self::PhantomRhythmRandomizer => "phantom-rhythm-randomizer",
         }
@@ -79,12 +81,19 @@ pub struct DecoyPlan {
 pub struct DecoyGovernor;
 
 impl DecoyGovernor {
-    pub fn plan(config: &RuntimeConfig, signal: &ThreatSignal, health: &HealthSnapshot) -> Option<DecoyPlan> {
+    pub fn plan(
+        config: &RuntimeConfig,
+        signal: &ThreatSignal,
+        health: &HealthSnapshot,
+    ) -> Option<DecoyPlan> {
         if !config.allow_decoys || config.passive_only || health.passive_only {
             return None;
         }
 
-        if matches!(signal.family, AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack) {
+        if matches!(
+            signal.family,
+            AttackFamily::VolumetricFlood | AttackFamily::IntegrityAttack
+        ) {
             return None;
         }
 
@@ -200,6 +209,19 @@ pub fn decoy_identity_catalog() -> Vec<DecoyIdentity> {
             ],
         },
         DecoyIdentity {
+            key: "recon-friction-veil",
+            display_name: "Recon Friction Veil",
+            classification: "high-speed-recon-friction",
+            harmless: true,
+            summary: "A harmless decoy modifier that makes high-speed reconnaissance spend more retries, time, and confidence before it can trust what it sees.",
+            visible_effect: "Automated scan tooling sees less stable presence, low-confidence targets, and extra ambiguity around the defended edge.",
+            internal_truth: "Sentinel keeps exact provenance, truth tags, and timing records so the same veil never confuses the defender.",
+            safety_contract: &[
+                "Recon Friction Veil must remain inert, bounded, and non-amplifying.",
+                "It exists to increase reconnaissance cost and uncertainty, not to damage tools or external systems.",
+            ],
+        },
+        DecoyIdentity {
             key: "cadence-randomizer",
             display_name: "Cadence Randomizer",
             classification: "safe-timing-variance",
@@ -229,9 +251,9 @@ pub fn decoy_identity_catalog() -> Vec<DecoyIdentity> {
 }
 
 pub fn find_decoy_identity(key: &str) -> Option<DecoyIdentity> {
-    decoy_identity_catalog()
-        .into_iter()
-        .find(|identity| identity.key.eq_ignore_ascii_case(key) || identity.display_name.eq_ignore_ascii_case(key))
+    decoy_identity_catalog().into_iter().find(|identity| {
+        identity.key.eq_ignore_ascii_case(key) || identity.display_name.eq_ignore_ascii_case(key)
+    })
 }
 
 fn primitives_for(family: AttackFamily) -> Vec<DecoyPrimitive> {
@@ -239,6 +261,7 @@ fn primitives_for(family: AttackFamily) -> Vec<DecoyPrimitive> {
         AttackFamily::OffensiveScan => vec![
             DecoyPrimitive::AmbientMist,
             DecoyPrimitive::IdfWindow,
+            DecoyPrimitive::ReconFrictionVeil,
             DecoyPrimitive::CadenceRandomizer,
             DecoyPrimitive::PhantomRhythmRandomizer,
         ],
@@ -253,13 +276,20 @@ fn primitives_for(family: AttackFamily) -> Vec<DecoyPrimitive> {
             DecoyPrimitive::PhantomRhythmRandomizer,
         ],
         AttackFamily::DnsTunneling | AttackFamily::ApiScraping | AttackFamily::Unknown => {
-            vec![DecoyPrimitive::AmbientMist, DecoyPrimitive::CadenceRandomizer]
+            vec![
+                DecoyPrimitive::AmbientMist,
+                DecoyPrimitive::CadenceRandomizer,
+            ]
         }
         _ => Vec::new(),
     }
 }
 
-fn capped_intensity(profile: LaunchProfile, signal: &ThreatSignal, health: &HealthSnapshot) -> DecoyIntensity {
+fn capped_intensity(
+    profile: LaunchProfile,
+    signal: &ThreatSignal,
+    health: &HealthSnapshot,
+) -> DecoyIntensity {
     if health.cpu_load_pct >= 80 || health.memory_load_pct >= 80 || health.thermal_c >= 82 {
         return DecoyIntensity::Minimal;
     }
@@ -339,7 +369,9 @@ fn stable_seed(parts: &[&str]) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{decoy_identity_catalog, find_decoy_identity, DecoyGovernor, DecoyIntensity, DecoyPrimitive};
+    use super::{
+        decoy_identity_catalog, find_decoy_identity, DecoyGovernor, DecoyIntensity, DecoyPrimitive,
+    };
     use sentinel_common::{AttackFamily, HealthSnapshot, ThreatSignal};
     use sentinel_config::{LaunchProfile, RuntimeConfig};
 
@@ -348,6 +380,7 @@ mod tests {
             source_name: "203.0.113.88".to_string(),
             family: AttackFamily::OffensiveScan,
             confidence: 84,
+            recognition: None,
             detail: "syn probe recon fingerprint".to_string(),
         }
     }
@@ -359,7 +392,10 @@ mod tests {
             .expect("plan should exist");
 
         assert_eq!(plan.profile, LaunchProfile::Protector);
-        assert!(matches!(plan.intensity, DecoyIntensity::Minimal | DecoyIntensity::Gentle));
+        assert!(matches!(
+            plan.intensity,
+            DecoyIntensity::Minimal | DecoyIntensity::Gentle
+        ));
         assert!(plan.primitives.contains(&DecoyPrimitive::IdfWindow));
         assert!(plan
             .primitives
@@ -416,9 +452,13 @@ mod tests {
 
     #[test]
     fn exposes_decoy_identity_catalog() {
-        let keys: Vec<_> = decoy_identity_catalog().into_iter().map(|identity| identity.key).collect();
+        let keys: Vec<_> = decoy_identity_catalog()
+            .into_iter()
+            .map(|identity| identity.key)
+            .collect();
 
         assert!(keys.contains(&"ambient-mist"));
+        assert!(keys.contains(&"recon-friction-veil"));
         assert!(keys.contains(&"spot-mimicry"));
         assert!(keys.contains(&"phantom-rhythm-randomizer"));
     }

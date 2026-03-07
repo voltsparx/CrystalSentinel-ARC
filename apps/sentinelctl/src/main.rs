@@ -8,12 +8,19 @@ use sentinel_native_bridge::native_layer_manifest;
 use sentinel_scenario::seed_scenarios;
 
 fn main() {
-    let command = std::env::args().nth(1).unwrap_or_else(|| "help".to_string());
+    let command = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "help".to_string());
 
     match command.as_str() {
         "intel" => {
             for source in seed_intel_sources() {
-                println!("{} [{}] - {}", source.name, source.kind.as_str(), source.summary);
+                println!(
+                    "{} [{}] - {}",
+                    source.name,
+                    source.kind.as_str(),
+                    source.summary
+                );
             }
         }
         "frameworks" => {
@@ -29,10 +36,12 @@ fn main() {
         "patterns" => {
             for identity in seed_pattern_identities() {
                 println!(
-                    "{} -> family={} category={} protocols={} sources={}",
+                    "{} -> display_name={} family={} category={} labels={} protocols={} sources={}",
                     identity.name,
+                    identity.display_name,
                     identity.family.as_str(),
                     identity.category,
+                    identity.labels.join(","),
                     identity.protocols.join(","),
                     identity.sources.join(",")
                 );
@@ -54,6 +63,7 @@ fn main() {
                 source_name: source,
                 family: sentinel_common::AttackFamily::OffensiveScan,
                 confidence: 84,
+                recognition: None,
                 detail: summary,
             };
 
@@ -62,7 +72,11 @@ fn main() {
                     launch_profile: profile,
                     ..RuntimeConfig::default()
                 };
-                if let Some(plan) = DecoyGovernor::plan(&config, &signal, &sentinel_common::HealthSnapshot::default()) {
+                if let Some(plan) = DecoyGovernor::plan(
+                    &config,
+                    &signal,
+                    &sentinel_common::HealthSnapshot::default(),
+                ) {
                     println!(
                         "{} -> intensity={} cadence_ms={} ghost_slots={} primitives={}",
                         profile.as_str(),
@@ -108,6 +122,18 @@ fn main() {
                 );
             }
         }
+        "coverage" => {
+            for item in coverage_matrix() {
+                println!(
+                    "{} -> status={} assessments={} implementation={} notes={}",
+                    item.capability,
+                    item.status,
+                    item.assessments.join(","),
+                    item.implementation.join(","),
+                    item.notes
+                );
+            }
+        }
         "teach" => {
             if let Some(name) = std::env::args().nth(2) {
                 if let Some(lesson) = find_lesson(&name) {
@@ -117,7 +143,10 @@ fn main() {
                 }
             } else {
                 for lesson in learning_catalog() {
-                    println!("{} [{}] harmless={}", lesson.name, lesson.classification, lesson.harmless);
+                    println!(
+                        "{} [{}] harmless={}",
+                        lesson.name, lesson.classification, lesson.harmless
+                    );
                 }
             }
         }
@@ -127,7 +156,7 @@ fn main() {
             }
         }
         _ => {
-            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|teach|safe-scans]");
+            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|coverage|teach|safe-scans]");
         }
     }
 }
@@ -145,4 +174,164 @@ fn print_lesson(lesson: &sentinel_education::ScanTypeLesson) {
     for item in lesson.safety_contract {
         println!("  - {}", item);
     }
+}
+
+struct CoverageItem {
+    capability: &'static str,
+    status: &'static str,
+    assessments: &'static [&'static str],
+    implementation: &'static [&'static str],
+    notes: &'static str,
+}
+
+fn coverage_matrix() -> &'static [CoverageItem] {
+    &[
+        CoverageItem {
+            capability: "autonomous-runtime-loop",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/the-guardian-system-arch.txt",
+                "self-assessments/deployment-script.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-runtime",
+                "crates/sentinel-policy",
+                "crates/sentinel-response",
+                "apps/sentineld",
+            ],
+            notes: "The runtime already correlates threat, health, integrity, recovery, and bounded action into one defensive loop.",
+        },
+        CoverageItem {
+            capability: "harmless-decoy-system",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/decoy-strategy.txt",
+                "self-assessments/genesis-sequence.txt",
+                "self-assessments/introducing-literal-new-scan-types-for-defensive-sec/idf-scan/idf-scan-doc.txt",
+                "self-assessments/chaff-system-entropy.txt",
+                "self-assessments/chaos-oscillator-randomizer.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-decoy",
+                "crates/sentinel-runtime",
+                "crates/sentinel-education",
+                "crates/sentinel-reporting",
+            ],
+            notes: "The decoy layer is bounded, inert, truth-tagged, and designed to cost hostile recon time and confidence without weaponizing traffic.",
+        },
+        CoverageItem {
+            capability: "phantom-kis-sars-tbns-vocabulary",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/introducing-literal-new-scan-types-for-defensive-sec/TriBlue-Network-Scanning(TBNS)/tbns-doc.txt",
+                "self-assessments/introducing-literal-new-scan-types-for-defensive-sec/phantom-scan/phantom-scan-doc.txt",
+                "self-assessments/introducing-literal-new-scan-types-for-defensive-sec/kinetic-impadence-scan/kis-doc.txt",
+                "self-assessments/introducing-literal-new-scan-types-for-defensive-sec/sar-scan/sars-doc.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-education",
+                "crates/sentinel-runtime",
+                "crates/sentinel-decoy",
+            ],
+            notes: "The framework uses these scan concepts as defensive identities and decision paths, while keeping the actual implementation harmless and bounded.",
+        },
+        CoverageItem {
+            capability: "threat-recognition-and-identity",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/reverse-engineering-frameworks.txt",
+                "self-assessments/common-attack-patterns.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-detection",
+                "crates/sentinel-common",
+                "crates/sentinel-correlation",
+                "crates/sentinel-reporting",
+            ],
+            notes: "Reports can name recognized behavior such as stager, spyware, reverse_tcp, reverse_http, and reverse_https instead of only broad families.",
+        },
+        CoverageItem {
+            capability: "care-centered-reporting-and-teaching",
+            status: "implemented",
+            assessments: &[
+                "self-assessments/real-time-telementary.txt",
+                "self-assessments/sovwreign-detective-and-reporter.txt",
+                "self-assessments/genesis-sequence.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-reporting",
+                "crates/sentinel-education",
+                "crates/sentinel-correlation",
+            ],
+            notes: "The reporting engine explains what happened in calm, human language while preserving forensic detail for professionals.",
+        },
+        CoverageItem {
+            capability: "dynamic-recovery-and-shadow-vault",
+            status: "partial",
+            assessments: &[
+                "self-assessments/dynamic-recovery.txt",
+                "self-assessments/the-shadow-vault.txt",
+                "self-assessments/sovereign-immune-system.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-integrity",
+                "crates/sentinel-shadow-vault",
+                "crates/sentinel-runtime",
+                "crates/sentinel-response",
+            ],
+            notes: "Recovery triage, healing modes, and restore planning exist now; direct OS-level artifact restore and process control are still future work.",
+        },
+        CoverageItem {
+            capability: "asm-fast-path-nervous-system",
+            status: "partial",
+            assessments: &[
+                "self-assessments/kernel-bypass-for-fast-actions.txt",
+                "self-assessments/autonomous-mitigation.txt",
+            ],
+            implementation: &[
+                "crates/sentinel-native-bridge",
+                "native/asm",
+                "crates/sentinel-runtime",
+            ],
+            notes: "Inline ASM already drives cycle stamping and fast pressure scoring. Zero-copy and direct-to-wire packet paths remain documented future work behind stability-first controls.",
+        },
+        CoverageItem {
+            capability: "c-low-level-defense-layer",
+            status: "scaffolded",
+            assessments: &[
+                "self-assessments/compaitibility.txt",
+                "self-assessments/the-guardian-system-arch.txt",
+            ],
+            implementation: &[
+                "native/c",
+                "native/include",
+                "crates/sentinel-native-bridge",
+            ],
+            notes: "The C layer is reserved for OS-facing packet helpers, descriptor-safe buffers, and compatibility shims. Contracts exist; live linking is still ahead.",
+        },
+        CoverageItem {
+            capability: "cpp-stateful-classifier-layer",
+            status: "scaffolded",
+            assessments: &[
+                "self-assessments/the-guardian-system-arch.txt",
+                "self-assessments/reverse-engineering-frameworks.txt",
+            ],
+            implementation: &[
+                "native/cpp",
+                "native/include",
+                "crates/sentinel-native-bridge",
+            ],
+            notes: "The C++ layer is reserved for richer stateful models and attack-template analysis. It is part of the layered design, but not linked into the runtime yet.",
+        },
+        CoverageItem {
+            capability: "nic-hal-and-multi-vendor-compatibility",
+            status: "future",
+            assessments: &["self-assessments/compaitibility.txt"],
+            implementation: &[
+                "native/README.md",
+                "docs/architecture/REPOSITORY-STRUCTURE.md",
+            ],
+            notes: "Queue partitioning, descriptor maps, and vendor-specific HAL logic are accepted design goals but are not implemented in v1.0 yet.",
+        },
+    ]
 }

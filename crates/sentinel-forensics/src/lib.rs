@@ -14,11 +14,13 @@ pub struct InvestigationRecord {
 impl InvestigationRecord {
     pub fn from_assessment(assessment: &ThreatAssessment, plan: &ResponsePlan) -> Self {
         Self {
-            title: format!("Sentinel investigation for {}", assessment.signal.source_name),
+            title: format!(
+                "Sentinel investigation for {}",
+                assessment.signal.source_name
+            ),
             family: assessment.signal.family.as_str().to_string(),
             stage: plan.stage.as_str().to_string(),
             narrative: format!("{} | {}", assessment.rationale, plan.narrative),
         }
     }
 }
-
