@@ -1,0 +1,11 @@
+[package]
+name = "sentinel-integrity"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sentinel-shadow-vault = { path = "../sentinel-shadow-vault" }
+
+[lib]
+path = "src/lib.rs"

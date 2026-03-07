@@ -10,6 +10,7 @@ sentinel-config = { path = "../sentinel-config" }
 sentinel-detection = { path = "../sentinel-detection" }
 sentinel-education = { path = "../sentinel-education" }
 sentinel-forensics = { path = "../sentinel-forensics" }
+sentinel-integrity = { path = "../sentinel-integrity" }
 sentinel-native-bridge = { path = "../sentinel-native-bridge" }
 sentinel-policy = { path = "../sentinel-policy" }
 sentinel-response = { path = "../sentinel-response" }

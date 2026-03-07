@@ -5,6 +5,7 @@ use sentinel_config::RuntimeConfig;
 use sentinel_detection::{detect_signal, fast_assess_event};
 use sentinel_education::find_lesson;
 use sentinel_forensics::InvestigationRecord;
+use sentinel_integrity::{IntegrityAssessment, IntegrityEngine, IntegrityVerdict};
 use sentinel_native_bridge::{FastPathDecision, FastThreatKind};
 use sentinel_policy::PolicyEngine;
 use sentinel_response::{ResponseAction, ResponsePlan, ResponsePlanner};
@@ -127,6 +128,7 @@ pub struct RuntimeDecision {
     pub posture: RuntimePosture,
     pub awareness: SituationAwareness,
     pub fast_path: FastPathDecision,
+    pub integrity_assessment: Option<IntegrityAssessment>,
     pub assessment: ThreatAssessment,
     pub plan: ResponsePlan,
     pub record: InvestigationRecord,
@@ -136,28 +138,36 @@ pub struct RuntimeDecision {
 #[derive(Default)]
 pub struct SentinelRuntime {
     policy: PolicyEngine,
+    integrity: IntegrityEngine,
 }
 
 impl SentinelRuntime {
     pub fn process_event(&self, config: &RuntimeConfig, event: &TelemetryEvent) -> RuntimeDecision {
         let fast_path = fast_assess_event(event);
         let signal = detect_signal(event);
+        let integrity_assessment = self.integrity.assess(&event.summary);
         let awareness = SituationAwareness::from_inputs(config, event, &signal, fast_path);
         let mut assessment = self.policy.assess(signal, effective_health(config, &event.health));
 
-        apply_runtime_bounds(&mut assessment, config, &awareness);
+        apply_runtime_bounds(&mut assessment, config, &awareness, integrity_assessment.as_ref());
 
         let posture = select_posture(&assessment, &awareness, fast_path);
         apply_posture_bounds(&mut assessment, posture, &awareness);
 
-        let plan = adapt_plan(ResponsePlanner::plan(&assessment), posture, &awareness);
+        let plan = adapt_plan(
+            ResponsePlanner::plan(&assessment),
+            posture,
+            &awareness,
+            integrity_assessment.as_ref(),
+        );
         let record = InvestigationRecord::from_assessment(&assessment, &plan);
-        let teaching_hint = teaching_hint_for(&assessment, posture);
+        let teaching_hint = teaching_hint_for(&assessment, posture, integrity_assessment.as_ref());
 
         RuntimeDecision {
             posture,
             awareness,
             fast_path,
+            integrity_assessment,
             assessment,
             plan,
             record,
@@ -227,7 +237,12 @@ fn derive_saturation(fast_path: FastPathDecision, health: &HealthSnapshot) -> Sa
     }
 }
 
-fn apply_runtime_bounds(assessment: &mut ThreatAssessment, config: &RuntimeConfig, awareness: &SituationAwareness) {
+fn apply_runtime_bounds(
+    assessment: &mut ThreatAssessment,
+    config: &RuntimeConfig,
+    awareness: &SituationAwareness,
+    integrity_assessment: Option<&IntegrityAssessment>,
+) {
     cap_stage(assessment, config.max_stage, "config-max-stage");
 
     if matches!(awareness.fragility, FragilityLevel::Critical) {
@@ -241,6 +256,13 @@ fn apply_runtime_bounds(assessment: &mut ThreatAssessment, config: &RuntimeConfi
     if matches!(awareness.integrity, IntegrityState::Critical) {
         assessment.stage = MitigationStage::Observe;
         append_rationale(assessment, "integrity-critical->observe-only");
+    }
+
+    if let Some(integrity) = integrity_assessment {
+        append_rationale(
+            assessment,
+            &format!("integrity_verdict={}", integrity.verdict.as_str()),
+        );
     }
 }
 
@@ -287,7 +309,12 @@ fn apply_posture_bounds(assessment: &mut ThreatAssessment, posture: RuntimePostu
     }
 }
 
-fn adapt_plan(mut plan: ResponsePlan, posture: RuntimePosture, awareness: &SituationAwareness) -> ResponsePlan {
+fn adapt_plan(
+    mut plan: ResponsePlan,
+    posture: RuntimePosture,
+    awareness: &SituationAwareness,
+    integrity_assessment: Option<&IntegrityAssessment>,
+) -> ResponsePlan {
     match posture {
         RuntimePosture::BaselineObserve => {
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
@@ -333,10 +360,34 @@ fn adapt_plan(mut plan: ResponsePlan, posture: RuntimePosture, awareness: &Situa
         }
     }
 
+    if let Some(integrity) = integrity_assessment {
+        push_unique(&mut plan.actions, ResponseAction::VerifyArtifactBaseline);
+
+        if integrity.restoration.is_some() {
+            push_unique(&mut plan.actions, ResponseAction::LockArtifact);
+            push_unique(&mut plan.actions, ResponseAction::SuspendCompromisedWorkload);
+            push_unique(&mut plan.actions, ResponseAction::RestoreFromShadowVault);
+        }
+
+        if matches!(integrity.verdict, IntegrityVerdict::CriticalCompromise) {
+            push_unique(&mut plan.actions, ResponseAction::RequireOperatorApproval);
+        }
+
+        plan.narrative = format!("{} integrity={}", plan.narrative, integrity.detail);
+    }
+
     plan
 }
 
-fn teaching_hint_for(assessment: &ThreatAssessment, posture: RuntimePosture) -> Option<&'static str> {
+fn teaching_hint_for(
+    assessment: &ThreatAssessment,
+    posture: RuntimePosture,
+    integrity_assessment: Option<&IntegrityAssessment>,
+) -> Option<&'static str> {
+    if integrity_assessment.is_some() {
+        return find_lesson("SHKE").map(|lesson| lesson.summary);
+    }
+
     match posture {
         RuntimePosture::DecoyFirstCapture => find_lesson("IDF Scan").map(|lesson| lesson.summary),
         RuntimePosture::ProtectiveIsolation | RuntimePosture::BoundedContainment => {
@@ -418,6 +469,7 @@ mod tests {
         assert_eq!(decision.posture, RuntimePosture::DefensiveHibernation);
         assert_eq!(decision.assessment.stage, MitigationStage::Observe);
         assert!(decision.plan.actions.contains(&ResponseAction::VerifySelfIntegrity));
+        assert!(decision.plan.actions.contains(&ResponseAction::VerifyArtifactBaseline));
         assert!(decision.plan.actions.contains(&ResponseAction::RequireOperatorApproval));
     }
 
@@ -443,5 +495,23 @@ mod tests {
         let decision = runtime.process_event(&config, &event);
 
         assert_eq!(decision.assessment.stage, MitigationStage::Contain);
+    }
+
+    #[test]
+    fn restorable_integrity_event_gets_shadow_vault_actions() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig::default();
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Integrity,
+            source: "sentinel-self".to_string(),
+            summary: "hash_mismatch sentineld runtime tamper".to_string(),
+            health: HealthSnapshot::default(),
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert!(decision.integrity_assessment.is_some());
+        assert!(decision.plan.actions.contains(&ResponseAction::RestoreFromShadowVault));
+        assert!(decision.plan.actions.contains(&ResponseAction::LockArtifact));
     }
 }

@@ -94,5 +94,16 @@ pub fn sample_events() -> Vec<TelemetryEvent> {
                 passive_only: false,
             },
         },
+        TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "198.51.100.61".to_string(),
+            summary: "tls.invalid_heartbeat_message heartbleed".to_string(),
+            health: HealthSnapshot {
+                cpu_load_pct: 44,
+                memory_load_pct: 37,
+                thermal_c: 56,
+                passive_only: false,
+            },
+        },
     ]
 }

@@ -77,6 +77,7 @@ fn main() {
                     println!("{}", reports.operator_report);
                     println!("{}", reports.forensic_report);
                     println!("{}", reports.human_report);
+                    println!("{}", reports.teaching_report);
                 }
                 Err(reason) => {
                     println!("engine: reporters status=fault-isolated reason={reason}");

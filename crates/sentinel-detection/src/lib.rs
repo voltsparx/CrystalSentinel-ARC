@@ -56,6 +56,11 @@ pub fn seed_intel_sources() -> Vec<IntelSource> {
             kind: IntelSourceKind::SecuritySystem,
             summary: "Rule engine and detection-content reference implementation.",
         },
+        IntelSource {
+            name: "suricata",
+            kind: IntelSourceKind::SecuritySystem,
+            summary: "Classification-driven IDS/IPS patterns and protocol anomaly coverage.",
+        },
     ]
 }
 
@@ -140,6 +145,66 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             narrative: "Inspired by Snort3 sensitive-data rules for outbound leakage over application protocols.",
         },
         PatternIdentity {
+            name: "suricata-network-scan",
+            family: AttackFamily::OffensiveScan,
+            category: "network-scan",
+            sources: &["suricata"],
+            protocols: &["tcp", "udp", "icmp"],
+            indicators: &["network_scan", "attempted_recon", "port_sweep", "syn_scan"],
+            minimum_matches: 2,
+            confidence: 87,
+            narrative: "Derived from Suricata classification coverage for network-scan and attempted-recon activity.",
+        },
+        PatternIdentity {
+            name: "suricata-command-and-control",
+            family: AttackFamily::Beaconing,
+            category: "command-and-control",
+            sources: &["suricata"],
+            protocols: &["dns", "http", "https", "tcp"],
+            indicators: &["command_and_control", "domain_c2", "beacon", "malware_cnc"],
+            minimum_matches: 2,
+            confidence: 91,
+            narrative: "Derived from Suricata classification coverage for command-and-control and domain-c2 activity.",
+        },
+        PatternIdentity {
+            name: "suricata-web-application-attack",
+            family: AttackFamily::ExploitDelivery,
+            category: "web-application-attack",
+            sources: &["suricata"],
+            protocols: &["http", "https"],
+            indicators: &["web_application_attack", "exploit_kit", "http_uri_anomaly", "client_side_exploit"],
+            minimum_matches: 2,
+            confidence: 89,
+            narrative: "Derived from Suricata classifications for exploit-kit and web-application-attack behavior.",
+        },
+        PatternIdentity {
+            name: "suricata-heartbeat-anomaly",
+            family: AttackFamily::ExploitDelivery,
+            category: "protocol-command-decode",
+            sources: &["suricata"],
+            protocols: &["tls", "https"],
+            indicators: &[
+                "tls.invalid_heartbeat_message",
+                "tls.overflow_heartbeat_message",
+                "tls.dataleak_heartbeat_mismatch",
+                "heartbleed",
+            ],
+            minimum_matches: 1,
+            confidence: 94,
+            narrative: "Derived from Suricata TLS heartbeat anomaly rules that flag possible heartbeat exploit attempts.",
+        },
+        PatternIdentity {
+            name: "suricata-credential-theft",
+            family: AttackFamily::IdentityAbuse,
+            category: "credential-theft",
+            sources: &["suricata"],
+            protocols: &["http", "https", "smtp", "imap"],
+            indicators: &["credential_theft", "default_login", "suspicious_login", "password_spray"],
+            minimum_matches: 2,
+            confidence: 90,
+            narrative: "Derived from Suricata classifications for credential theft, suspicious login, and default login attempts.",
+        },
+        PatternIdentity {
             name: "metasploit-http-transport",
             family: AttackFamily::PayloadStager,
             category: "meterpreter-http-transport",
@@ -197,23 +262,29 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
             fast.overall_score,
             explain_fast_path("Reconnaissance or offensive scan pressure triggered the ASM fast path.", fast),
         )
-    } else if matches!(fast.kind, FastThreatKind::Intrusion) && fast.overall_score >= 70 {
-        (
-            AttackFamily::ExploitDelivery,
-            fast.overall_score,
-            explain_fast_path("Intrusion-oriented behavior triggered the ASM fast path.", fast),
-        )
     } else if let Some(pattern) = identify_pattern(&summary) {
         (
             pattern.family,
             pattern.confidence.max(fast.overall_score),
             explain_fast_path(&pattern.detail, fast),
         )
+    } else if matches!(fast.kind, FastThreatKind::Intrusion) && fast.overall_score >= 70 {
+        (
+            AttackFamily::ExploitDelivery,
+            fast.overall_score,
+            explain_fast_path("Intrusion-oriented behavior triggered the ASM fast path.", fast),
+        )
     } else if summary.contains("dns_tunnel") || summary.contains("high_entropy") {
         (
             AttackFamily::DnsTunneling,
             92.max(fast.overall_score),
             explain_fast_path("High-entropy DNS behavior matched tunneling heuristics.", fast),
+        )
+    } else if contains_any(&summary, &["credit_card", "us_social", "http_client_body", "file_data"]) {
+        (
+            AttackFamily::DataExfiltration,
+            91.max(fast.overall_score),
+            explain_fast_path("Sensitive outbound content matched data exfiltration heuristics.", fast),
         )
     } else if summary.contains("burst_flood") {
         (
@@ -245,7 +316,10 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
             84.max(fast.overall_score),
             explain_fast_path("Behavior resembled recurring command-and-control beaconing.", fast),
         )
-    } else if summary.contains("integrity_breach") {
+    } else if contains_any(
+        &summary,
+        &["integrity_breach", "hash_mismatch", "unsigned_change", "syscall_table", "modified_binary"],
+    ) {
         (
             AttackFamily::IntegrityAttack,
             93.max(fast.overall_score),
@@ -345,6 +419,9 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
             "stager",
             "reverse_shell",
             "uuid",
+            "heartbleed",
+            "tls.invalid_heartbeat_message",
+            "tls.overflow_heartbeat_message",
         ],
     ) {
         features.intrusion_pressure = features.intrusion_pressure.saturating_add(70);
@@ -361,7 +438,19 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     ) {
         features.entropy_pressure = features.entropy_pressure.saturating_add(50);
     }
-    if contains_any(&summary, &["integrity_breach", "ptrace", "debug", "tamper"]) {
+    if contains_any(
+        &summary,
+        &[
+            "integrity_breach",
+            "ptrace",
+            "debug",
+            "tamper",
+            "hash_mismatch",
+            "unsigned_change",
+            "syscall_table",
+            "modified_binary",
+        ],
+    ) {
         features.integrity_pressure = features.integrity_pressure.saturating_add(75);
     }
 
@@ -399,6 +488,7 @@ mod tests {
 
         assert!(names.contains(&"snort3-malware-cnc"));
         assert!(names.contains(&"metasploit-http-transport"));
+        assert!(names.contains(&"suricata-heartbeat-anomaly"));
     }
 
     #[test]
@@ -421,5 +511,18 @@ mod tests {
 
         assert_eq!(signal.family, AttackFamily::DataExfiltration);
         assert!(signal.detail.contains("snort3-sensitive-data-egress"));
+    }
+
+    #[test]
+    fn identifies_suricata_heartbeat_exploit() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "198.51.100.61".to_string(),
+            summary: "tls.invalid_heartbeat_message heartbleed".to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        assert_eq!(signal.family, AttackFamily::ExploitDelivery);
+        assert!(signal.detail.contains("suricata-heartbeat-anomaly"));
     }
 }

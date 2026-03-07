@@ -12,6 +12,7 @@ target/
 build/
 dist/
 out/
+.cargo-target-local/
 
 # Python tooling
 __pycache__/

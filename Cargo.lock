@@ -63,6 +63,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sentinel-integrity"
+version = "0.1.0"
+dependencies = [
+ "sentinel-shadow-vault",
+]
+
+[[package]]
 name = "sentinel-native-bridge"
 version = "0.1.0"
 dependencies = [
@@ -101,6 +108,7 @@ dependencies = [
  "sentinel-detection",
  "sentinel-education",
  "sentinel-forensics",
+ "sentinel-integrity",
  "sentinel-native-bridge",
  "sentinel-policy",
  "sentinel-response",
@@ -113,6 +121,10 @@ version = "0.1.0"
 dependencies = [
  "sentinel-common",
 ]
+
+[[package]]
+name = "sentinel-shadow-vault"
+version = "0.1.0"
 
 [[package]]
 name = "sentinel-storage"
