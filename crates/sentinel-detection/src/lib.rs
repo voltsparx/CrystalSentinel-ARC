@@ -54,6 +54,16 @@ pub fn seed_intel_sources() -> Vec<IntelSource> {
             summary: "Stage loading and staged transport reference behaviors.",
         },
         IntelSource {
+            name: "reference-java-meterpreter",
+            kind: IntelSourceKind::OffensiveFramework,
+            summary: "Java meterpreter loader and stdapi extension reference behaviors.",
+        },
+        IntelSource {
+            name: "reference-android-meterpreter",
+            kind: IntelSourceKind::OffensiveFramework,
+            summary: "Android meterpreter command registration and handheld collection reference behaviors.",
+        },
+        IntelSource {
             name: "reference-payload-wrapper",
             kind: IntelSourceKind::OffensiveFramework,
             summary: "Payload packaging and delivery-chain reference behaviors.",
@@ -95,6 +105,26 @@ pub fn seed_framework_catalog() -> Vec<FrameworkFingerprint> {
                 "stage_loader",
                 "reflective payload",
                 "post-exploitation transport",
+            ],
+            preferred_stage: MitigationStage::Contain,
+        },
+        FrameworkFingerprint {
+            name: "reference-java-meterpreter",
+            family: AttackFamily::PayloadStager,
+            indicators: &[
+                "meterpreter jar",
+                "stdapi extension jar",
+                "memory buffer loader",
+            ],
+            preferred_stage: MitigationStage::Contain,
+        },
+        FrameworkFingerprint {
+            name: "reference-android-meterpreter",
+            family: AttackFamily::RemoteAccessTrojan,
+            indicators: &[
+                "android meterpreter",
+                "webcam audio record",
+                "screenshot command fan-out",
             ],
             preferred_stage: MitigationStage::Contain,
         },
@@ -412,6 +442,44 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             narrative: "Reflects staged payload and migration markers found in reference transport and pivot code.",
         },
         PatternIdentity {
+            name: "java-meterpreter-memory-loader",
+            display_name: "Java Meterpreter Memory Loader Pattern",
+            family: AttackFamily::PayloadStager,
+            category: "java-meterpreter-loader",
+            sources: &["reference-java-meterpreter"],
+            protocols: &["java", "tcp", "http", "https"],
+            labels: &["stager", "java_meterpreter", "memory_loader"],
+            indicators: &[
+                "meterpreter.jar",
+                "ext_server_stdapi.jar",
+                "memorybufferurlconnection",
+                "memorybufferurlstreamhandler",
+                "javapayload.stage.meterpreter",
+            ],
+            minimum_matches: 2,
+            confidence: 92,
+            narrative: "Reflects Java meterpreter staging and in-memory loader traits such as bundled meterpreter jars, stdapi extension jars, and memory-buffer stream handlers.",
+        },
+        PatternIdentity {
+            name: "android-meterpreter-command-suite",
+            display_name: "Android Meterpreter Command Suite Pattern",
+            family: AttackFamily::RemoteAccessTrojan,
+            category: "android-meterpreter-control",
+            sources: &["reference-android-meterpreter"],
+            protocols: &["android", "tcp", "http", "https"],
+            labels: &["rat", "android", "meterpreter", "surveillance"],
+            indicators: &[
+                "androidmeterpreter",
+                "android_channel_open",
+                "stdapi_ui_desktop_screenshot",
+                "stdapi_webcam_audio_record_android",
+                "stdapi_sys_process_execute",
+            ],
+            minimum_matches: 2,
+            confidence: 94,
+            narrative: "Reflects Android meterpreter command registration for screenshot capture, webcam or audio collection, and remote process control.",
+        },
+        PatternIdentity {
             name: "reflective-loader-pattern",
             display_name: "Reflective Loader Pattern",
             family: AttackFamily::PayloadStager,
@@ -513,6 +581,25 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             minimum_matches: 2,
             confidence: 90,
             narrative: "Reflects payload-wrapper behavior around reverse HTTPS payload generation and packaging.",
+        },
+        PatternIdentity {
+            name: "android-backdoor-wrapper-obfuscation",
+            display_name: "Android Backdoor Wrapper Obfuscation Pattern",
+            family: AttackFamily::ExploitDelivery,
+            category: "android-backdoor-wrapper",
+            sources: &["reference-payload-wrapper"],
+            protocols: &["android", "tcp", "http", "https"],
+            labels: &["android", "backdoor_wrapper", "obfuscation"],
+            indicators: &[
+                "backdoor_apk",
+                "apkembed.rb",
+                "stringobfuscator",
+                "android/meterpreter/reverse_https",
+                "msfvenom",
+            ],
+            minimum_matches: 2,
+            confidence: 91,
+            narrative: "Reflects Android payload-wrapper behavior that combines APK backdooring, string obfuscation, and Android meterpreter packaging.",
         },
     ]
 }
@@ -1287,6 +1374,9 @@ mod tests {
         assert!(names.contains(&"reference-stateful-ssh-password-guessing"));
         assert!(names.contains(&"reference-stateful-http-uri-sqli"));
         assert!(names.contains(&"mobile-surveillance-suite"));
+        assert!(names.contains(&"java-meterpreter-memory-loader"));
+        assert!(names.contains(&"android-meterpreter-command-suite"));
+        assert!(names.contains(&"android-backdoor-wrapper-obfuscation"));
         assert!(names.contains(&"payload-wrapper-reverse-https"));
         assert!(names.contains(&"reflective-loader-pattern"));
         assert!(names.contains(&"interactive-reverse-shell-pattern"));
@@ -1341,6 +1431,36 @@ mod tests {
     }
 
     #[test]
+    fn identifies_java_meterpreter_loader_patterns() {
+        let matched = identify_pattern(
+            "meterpreter.jar ext_server_stdapi.jar memorybufferurlconnection javapayload.stage.meterpreter",
+        )
+        .expect("java meterpreter loader should match");
+
+        assert_eq!(matched.identity_name, "java-meterpreter-memory-loader");
+        assert_eq!(matched.family, AttackFamily::PayloadStager);
+        assert!(matched
+            .recognition
+            .labels
+            .contains(&"java_meterpreter".to_string()));
+    }
+
+    #[test]
+    fn identifies_android_meterpreter_command_suite() {
+        let matched = identify_pattern(
+            "androidmeterpreter stdapi_ui_desktop_screenshot stdapi_webcam_audio_record_android android_channel_open",
+        )
+        .expect("android meterpreter command suite should match");
+
+        assert_eq!(matched.identity_name, "android-meterpreter-command-suite");
+        assert_eq!(matched.family, AttackFamily::RemoteAccessTrojan);
+        assert!(matched
+            .recognition
+            .labels
+            .contains(&"meterpreter".to_string()));
+    }
+
+    #[test]
     fn detects_payload_wrapper_reverse_https() {
         let signal = detect_signal(&TelemetryEvent {
             kind: TelemetryKind::Flow,
@@ -1356,6 +1476,28 @@ mod tests {
             "Payload Wrapper Reverse HTTPS Pattern"
         );
         assert!(recognition.labels.contains(&"reverse_https".to_string()));
+    }
+
+    #[test]
+    fn detects_android_backdoor_wrapper_obfuscation() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Flow,
+            source: "android-wrapper".to_string(),
+            summary:
+                "backdoor_apk apkembed.rb stringobfuscator android/meterpreter/reverse_https"
+                    .to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::ExploitDelivery);
+        assert_eq!(
+            recognition.display_name,
+            "Android Backdoor Wrapper Obfuscation Pattern"
+        );
+        assert!(recognition
+            .labels
+            .contains(&"backdoor_wrapper".to_string()));
     }
 
     #[test]
