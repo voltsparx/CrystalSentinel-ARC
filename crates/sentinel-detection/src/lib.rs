@@ -357,6 +357,32 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             narrative: "Recognizes compromised or drifting guardian heartbeats in a defensive mesh so peer trust can be reduced without collapsing the wider environment.",
         },
         PatternIdentity {
+            name: "wireless-management-disruption-storm",
+            display_name: "Wireless Management Disruption Pattern",
+            family: AttackFamily::VolumetricFlood,
+            category: "wireless-management-disruption",
+            sources: &["reference-stateful-network-monitor", "heuristic"],
+            protocols: &["802.11", "wireless", "management"],
+            labels: &[
+                "wireless",
+                "deauth",
+                "disassociation",
+                "management_frame",
+                "availability",
+            ],
+            indicators: &[
+                "deauth_flood",
+                "deauthentication_storm",
+                "disassociation_storm",
+                "management_frame_spike",
+                "beacon_flood",
+                "reason_code_storm",
+            ],
+            minimum_matches: 2,
+            confidence: 93,
+            narrative: "Recognizes wireless management-frame disruption pressure so the local node can shield its control plane and pin trusted links instead of reacting on-wire.",
+        },
+        PatternIdentity {
             name: "reference-stateful-ssh-password-guessing",
             display_name: "Stateful SSH Password Guessing Pattern",
             family: AttackFamily::IdentityAbuse,
@@ -638,20 +664,23 @@ pub fn detect_signal(event: &TelemetryEvent) -> ThreatSignal {
         FastThreatKind::IntegrityPressure
     ) && fast.overall_score >= 70
     {
+        let recognition = recognition_for_family(&pattern_matches, AttackFamily::IntegrityAttack);
         (
             AttackFamily::IntegrityAttack,
             fast.overall_score,
-            None,
+            recognition,
             explain_fast_path(
                 "Runtime tamper or integrity pressure triggered the ASM fast path.",
                 fast,
             ),
         )
     } else if matches!(fast.kind, FastThreatKind::DdosPressure) && fast.overall_score >= 80 {
+        let recognition =
+            recognition_for_family(&pattern_matches, AttackFamily::VolumetricFlood);
         (
             AttackFamily::VolumetricFlood,
             fast.overall_score,
-            None,
+            recognition,
             explain_fast_path(
                 "Burst or saturation behavior triggered the ASM fast path.",
                 fast,
@@ -1063,6 +1092,16 @@ pub fn identify_patterns(summary: &str) -> Vec<PatternMatch> {
     matches
 }
 
+fn recognition_for_family(
+    pattern_matches: &[PatternMatch],
+    family: AttackFamily,
+) -> Option<ThreatRecognition> {
+    pattern_matches
+        .iter()
+        .find(|pattern| pattern.family == family)
+        .map(|pattern| pattern.recognition.clone())
+}
+
 fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     let summary = event.summary.to_ascii_lowercase();
     let mut features = FastPathFeatures::default();
@@ -1097,6 +1136,7 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     ) {
         features.scan_pressure = features.scan_pressure.saturating_add(25);
         features.entropy_pressure = features.entropy_pressure.saturating_add(10);
+        features.kinetic_pressure = features.kinetic_pressure.saturating_add(35);
     }
     if contains_any(
         &summary,
@@ -1139,7 +1179,19 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     }
     if contains_any(
         &summary,
-        &["burst_flood", "ddos", "flood", "pps_spike", "aisuru"],
+        &[
+            "burst_flood",
+            "ddos",
+            "flood",
+            "pps_spike",
+            "aisuru",
+            "deauth_flood",
+            "deauthentication_storm",
+            "disassociation_storm",
+            "management_frame_spike",
+            "beacon_flood",
+            "reason_code_storm",
+        ],
     ) {
         features.ddos_pressure = features.ddos_pressure.saturating_add(80);
     }
@@ -1158,6 +1210,34 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
     if contains_any(
         &summary,
         &[
+            "jitter_spike",
+            "kinetic_impedance",
+            "sjs_mismatch",
+            "silicon_jitter",
+            "timing_drift",
+            "vm_mask",
+            "fpga_scanner",
+            "hardware_echo",
+        ],
+    ) {
+        features.kinetic_pressure = features.kinetic_pressure.saturating_add(55);
+    }
+    if contains_any(
+        &summary,
+        &[
+            "deauth_flood",
+            "deauthentication_storm",
+            "disassociation_storm",
+            "management_frame_spike",
+            "beacon_flood",
+            "reason_code_storm",
+        ],
+    ) {
+        features.kinetic_pressure = features.kinetic_pressure.saturating_add(30);
+    }
+    if contains_any(
+        &summary,
+        &[
             "integrity_breach",
             "ptrace",
             "debug",
@@ -1169,6 +1249,18 @@ fn build_fast_path_features(event: &TelemetryEvent) -> FastPathFeatures {
         ],
     ) {
         features.integrity_pressure = features.integrity_pressure.saturating_add(75);
+    }
+    if contains_any(
+        &summary,
+        &[
+            "mesh_heartbeat_missing",
+            "mesh_heartbeat_malformed",
+            "guardian_pulse_invalid",
+            "peer_trust_drift",
+        ],
+    ) {
+        features.heartbeat_pressure = features.heartbeat_pressure.saturating_add(60);
+        features.kinetic_pressure = features.kinetic_pressure.saturating_add(15);
     }
 
     features
@@ -1262,6 +1354,20 @@ fn derive_signal_analysis_lanes(
         ],
     ) {
         lanes.insert("transport-intelligence".to_string());
+    }
+
+    if contains_any(
+        summary,
+        &[
+            "deauth_flood",
+            "deauthentication_storm",
+            "disassociation_storm",
+            "management_frame_spike",
+            "beacon_flood",
+            "reason_code_storm",
+        ],
+    ) {
+        lanes.insert("wireless-guard".to_string());
     }
 
     if matches!(family, AttackFamily::IntegrityAttack) {
@@ -1363,7 +1469,7 @@ fn heuristic_recognition(
 
 fn explain_fast_path(prefix: &str, fast: FastPathDecision) -> String {
     format!(
-        "{} fast_path.kind={} stage={} score={} scan={} intrusion={} integrity={} ddos={} tick={}",
+        "{} fast_path.kind={} stage={} score={} scan={} intrusion={} integrity={} ddos={} kinetic={} margin={} tick={}",
         prefix,
         fast.kind.as_str(),
         fast.recommended_stage.as_str(),
@@ -1372,6 +1478,8 @@ fn explain_fast_path(prefix: &str, fast: FastPathDecision) -> String {
         fast.intrusion_score,
         fast.integrity_score,
         fast.ddos_score,
+        fast.kinetic_score,
+        fast.dominance_margin,
         fast.cycle_stamp
     )
 }
@@ -1396,6 +1504,7 @@ mod tests {
         assert!(names.contains(&"research-service-fingerprint-scan"));
         assert!(names.contains(&"reference-stateful-heartbeat-observer"));
         assert!(names.contains(&"mesh-heartbeat-guardian-drift"));
+        assert!(names.contains(&"wireless-management-disruption-storm"));
         assert!(names.contains(&"reference-stateful-ssh-password-guessing"));
         assert!(names.contains(&"reference-stateful-http-uri-sqli"));
         assert!(names.contains(&"mobile-surveillance-suite"));
@@ -1463,6 +1572,28 @@ mod tests {
             "Mesh Heartbeat Guardian Drift Pattern"
         );
         assert!(recognition.labels.contains(&"mesh".to_string()));
+    }
+
+    #[test]
+    fn detects_wireless_management_disruption_pressure() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "radio-edge-03".to_string(),
+            summary: "deauth_flood disassociation_storm management_frame_spike"
+                .to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::VolumetricFlood);
+        assert_eq!(
+            recognition.display_name,
+            "Wireless Management Disruption Pattern"
+        );
+        assert!(recognition.labels.contains(&"wireless".to_string()));
+        assert!(signal
+            .analysis_lanes
+            .contains(&"wireless-guard".to_string()));
     }
 
     #[test]

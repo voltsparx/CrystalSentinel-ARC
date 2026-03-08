@@ -63,8 +63,8 @@ pub fn native_layer_manifest() -> Vec<NativeLayerSpec> {
         NativeLayerSpec {
             language: NativeLanguage::Asm,
             library: "sentinel-native-asm",
-            responsibility: "Linked timing primitives, weighted pressure mixing, fast-path pressure scoring, health-aware zen fallback decisions, and bounded direct-to-wire readiness for defensive paths.",
-            entrypoint: "fast_path_assess / asm_defense_directive / sentinel_asm_weighted_mix / sentinel_asm_pressure_mode / sentinel_asm_observation_window / sentinel_asm_decoy_budget",
+            responsibility: "Linked timing primitives, weighted pressure mixing, kinetic-impedance aware fast-path scoring, bounded evidence-ladder sizing, health-aware zen fallback decisions, and defensive lane rebalance guidance.",
+            entrypoint: "fast_path_assess / asm_defense_directive / sentinel_asm_weighted_mix / sentinel_asm_weighted_mix4 / sentinel_asm_pressure_mode / sentinel_asm_observation_window / sentinel_asm_decoy_budget / sentinel_asm_evidence_budget / sentinel_asm_phantom_jitter / sentinel_asm_guard_bias",
             status: NativeLayerStatus::Linked,
         },
     ]
@@ -78,6 +78,8 @@ pub struct FastPathFeatures {
     pub identity_pressure: u8,
     pub entropy_pressure: u8,
     pub integrity_pressure: u8,
+    pub kinetic_pressure: u8,
+    pub heartbeat_pressure: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -116,6 +118,8 @@ pub struct FastPathDecision {
     pub intrusion_score: u16,
     pub integrity_score: u16,
     pub ddos_score: u16,
+    pub kinetic_score: u16,
+    pub dominance_margin: u8,
     pub overall_score: u8,
     pub kind: FastThreatKind,
     pub recommended_stage: MitigationStage,
@@ -146,6 +150,9 @@ pub struct AsmDefenseDirective {
     pub observation_window_ms: u16,
     pub exposure_reduction_pct: u8,
     pub decoy_budget: u8,
+    pub evidence_budget: u8,
+    pub phantom_jitter_ms: u8,
+    pub guard_bias_pct: u8,
     pub keep_decoy_capture: bool,
     pub recovery_bias: bool,
     pub resume_standby_after_ms: u16,
@@ -153,41 +160,63 @@ pub struct AsmDefenseDirective {
 
 pub fn fast_path_assess(features: FastPathFeatures) -> FastPathDecision {
     let cycle_stamp = asm_cycle_stamp();
-    let scan_score = weighted_score(
+    let scan_score = weighted_score4(
         features.scan_pressure,
         features.entropy_pressure,
-        features.integrity_pressure,
+        features.kinetic_pressure,
+        features.heartbeat_pressure,
         3,
         1,
+        2,
         1,
     );
-    let intrusion_score = weighted_score(
+    let intrusion_score = weighted_score4(
         features.intrusion_pressure,
         features.identity_pressure,
         features.integrity_pressure,
+        features.kinetic_pressure,
         4,
         3,
         4,
+        1,
     );
-    let ddos_score = weighted_score(
+    let ddos_score = weighted_score4(
         features.ddos_pressure,
         features.scan_pressure,
         features.entropy_pressure,
+        features.kinetic_pressure,
         5,
         1,
         2,
-    );
-    let integrity_score = weighted_score(
-        features.integrity_pressure,
-        features.intrusion_pressure,
-        features.identity_pressure,
-        5,
         2,
+    );
+    let integrity_score = weighted_score4(
+        features.integrity_pressure,
+        features.heartbeat_pressure,
+        features.intrusion_pressure,
+        features.kinetic_pressure,
+        5,
+        4,
+        2,
+        1,
+    );
+    let kinetic_score = weighted_score4(
+        features.kinetic_pressure,
+        features.scan_pressure,
+        features.entropy_pressure,
+        features.heartbeat_pressure,
+        4,
+        1,
+        1,
         2,
     );
 
-    let (kind, peak) = dominant_kind(scan_score, intrusion_score, integrity_score, ddos_score);
-    let overall_score = peak.min(u16::from(u8::MAX)) as u8;
+    let (kind, peak, runner_up) =
+        dominant_kind(scan_score, intrusion_score, integrity_score, ddos_score);
+    let dominance_margin = peak.saturating_sub(runner_up).min(u16::from(u8::MAX)) as u8;
+    let overall_score = peak
+        .saturating_add(u16::from(dominance_margin / 4))
+        .min(u16::from(u8::MAX)) as u8;
     let recommended_stage = match kind {
         FastThreatKind::Benign => MitigationStage::Observe,
         FastThreatKind::OffensiveScan => MitigationStage::Throttle,
@@ -202,6 +231,8 @@ pub fn fast_path_assess(features: FastPathFeatures) -> FastPathDecision {
         intrusion_score,
         integrity_score,
         ddos_score,
+        kinetic_score,
+        dominance_margin,
         overall_score,
         kind,
         recommended_stage,
@@ -225,6 +256,9 @@ pub fn asm_defense_directive(
             observation_window_ms: 90,
             exposure_reduction_pct: 80,
             decoy_budget: 0,
+            evidence_budget: 0,
+            phantom_jitter_ms: 0,
+            guard_bias_pct: 20,
             keep_decoy_capture: false,
             recovery_bias: true,
             resume_standby_after_ms: 900,
@@ -237,37 +271,17 @@ pub fn asm_defense_directive(
             observation_window_ms: 0,
             exposure_reduction_pct: 0,
             decoy_budget: 0,
+            evidence_budget: 0,
+            phantom_jitter_ms: 0,
+            guard_bias_pct: 10,
             keep_decoy_capture: false,
             recovery_bias: false,
             resume_standby_after_ms: 0,
         },
-        FastThreatKind::OffensiveScan => AsmDefenseDirective {
-            mode: AsmDefenseMode::DecoyCapture,
-            observation_window_ms: if resource_pressure { 120 } else { 180 },
-            exposure_reduction_pct: 20,
-            decoy_budget: if resource_pressure { 1 } else { 3 },
-            keep_decoy_capture: true,
-            recovery_bias: false,
-            resume_standby_after_ms: 240,
-        },
-        FastThreatKind::Intrusion => AsmDefenseDirective {
-            mode: AsmDefenseMode::ContainmentGuard,
-            observation_window_ms: if resource_pressure { 100 } else { 140 },
-            exposure_reduction_pct: if resource_pressure { 45 } else { 30 },
-            decoy_budget: if resource_pressure { 0 } else { 1 },
-            keep_decoy_capture: !resource_pressure && decision.overall_score < 90,
-            recovery_bias: resource_pressure,
-            resume_standby_after_ms: 360,
-        },
-        FastThreatKind::IntegrityPressure | FastThreatKind::DdosPressure => AsmDefenseDirective {
-            mode: AsmDefenseMode::ContainmentGuard,
-            observation_window_ms: 80,
-            exposure_reduction_pct: 60,
-            decoy_budget: 0,
-            keep_decoy_capture: false,
-            recovery_bias: resource_pressure,
-            resume_standby_after_ms: 480,
-        },
+        FastThreatKind::OffensiveScan => scan_directive(decision, resource_pressure),
+        FastThreatKind::Intrusion => intrusion_directive(decision, resource_pressure),
+        FastThreatKind::IntegrityPressure => integrity_directive(decision, resource_pressure),
+        FastThreatKind::DdosPressure => ddos_directive(decision, resource_pressure),
     }
 }
 
@@ -276,21 +290,129 @@ fn dominant_kind(
     intrusion_score: u16,
     integrity_score: u16,
     ddos_score: u16,
-) -> (FastThreatKind, u16) {
+) -> (FastThreatKind, u16, u16) {
+    let mut scores = [
+        (FastThreatKind::IntegrityPressure, integrity_score),
+        (FastThreatKind::DdosPressure, ddos_score),
+        (FastThreatKind::Intrusion, intrusion_score),
+        (FastThreatKind::OffensiveScan, scan_score),
+    ];
+    scores.sort_by(|left, right| right.1.cmp(&left.1));
+    let (_kind, peak) = scores[0];
+    let runner_up = scores[1].1;
+
+    if peak == 0 {
+        return (FastThreatKind::Benign, 0, 0);
+    }
+
     if integrity_score >= ddos_score
         && integrity_score >= intrusion_score
         && integrity_score >= scan_score
         && integrity_score > 0
     {
-        (FastThreatKind::IntegrityPressure, integrity_score)
+        (FastThreatKind::IntegrityPressure, integrity_score, runner_up)
     } else if ddos_score >= intrusion_score && ddos_score >= scan_score && ddos_score > 0 {
-        (FastThreatKind::DdosPressure, ddos_score)
+        (FastThreatKind::DdosPressure, ddos_score, runner_up)
     } else if intrusion_score >= scan_score && intrusion_score > 0 {
-        (FastThreatKind::Intrusion, intrusion_score)
+        (FastThreatKind::Intrusion, intrusion_score, runner_up)
     } else if scan_score > 0 {
-        (FastThreatKind::OffensiveScan, scan_score)
+        (FastThreatKind::OffensiveScan, scan_score, runner_up)
     } else {
-        (FastThreatKind::Benign, 0)
+        (FastThreatKind::Benign, 0, 0)
+    }
+}
+
+fn scan_directive(decision: FastPathDecision, resource_pressure: bool) -> AsmDefenseDirective {
+    let dominant_scan = decision.dominance_margin >= 40;
+    let kinetic_bias = decision.kinetic_score >= 160;
+    let observation_window_ms = if resource_pressure {
+        120
+    } else if dominant_scan {
+        220
+    } else {
+        180
+    };
+    let decoy_budget = if resource_pressure {
+        1
+    } else if dominant_scan {
+        4
+    } else {
+        3
+    };
+    let evidence_budget = if resource_pressure {
+        2
+    } else if kinetic_bias || dominant_scan {
+        5
+    } else {
+        4
+    };
+    let phantom_jitter_ms = if resource_pressure {
+        6
+    } else if kinetic_bias {
+        8
+    } else {
+        12
+    };
+    let resume_standby_after_ms = 240 + u16::from(decision.dominance_margin) * 2;
+
+    AsmDefenseDirective {
+        mode: AsmDefenseMode::DecoyCapture,
+        observation_window_ms,
+        exposure_reduction_pct: if dominant_scan { 25 } else { 20 },
+        decoy_budget,
+        evidence_budget,
+        phantom_jitter_ms,
+        guard_bias_pct: if dominant_scan { 55 } else { 45 },
+        keep_decoy_capture: true,
+        recovery_bias: false,
+        resume_standby_after_ms,
+    }
+}
+
+fn intrusion_directive(decision: FastPathDecision, resource_pressure: bool) -> AsmDefenseDirective {
+    let heavy_intrusion = decision.dominance_margin >= 35 || decision.overall_score >= 95;
+
+    AsmDefenseDirective {
+        mode: AsmDefenseMode::ContainmentGuard,
+        observation_window_ms: if resource_pressure { 100 } else { 150 },
+        exposure_reduction_pct: if resource_pressure { 50 } else if heavy_intrusion { 40 } else { 30 },
+        decoy_budget: if resource_pressure { 0 } else { 1 },
+        evidence_budget: if resource_pressure { 1 } else if heavy_intrusion { 3 } else { 2 },
+        phantom_jitter_ms: if resource_pressure { 0 } else { 6 },
+        guard_bias_pct: if heavy_intrusion { 68 } else { 60 },
+        keep_decoy_capture: !resource_pressure && decision.overall_score < 90,
+        recovery_bias: resource_pressure,
+        resume_standby_after_ms: 360 + u16::from(decision.dominance_margin),
+    }
+}
+
+fn integrity_directive(decision: FastPathDecision, resource_pressure: bool) -> AsmDefenseDirective {
+    AsmDefenseDirective {
+        mode: AsmDefenseMode::ContainmentGuard,
+        observation_window_ms: if resource_pressure { 72 } else { 90 },
+        exposure_reduction_pct: 65,
+        decoy_budget: 0,
+        evidence_budget: if resource_pressure { 1 } else { 2 },
+        phantom_jitter_ms: 0,
+        guard_bias_pct: 82,
+        keep_decoy_capture: false,
+        recovery_bias: true,
+        resume_standby_after_ms: 480 + u16::from(decision.dominance_margin),
+    }
+}
+
+fn ddos_directive(decision: FastPathDecision, resource_pressure: bool) -> AsmDefenseDirective {
+    AsmDefenseDirective {
+        mode: AsmDefenseMode::ContainmentGuard,
+        observation_window_ms: if resource_pressure { 64 } else { 80 },
+        exposure_reduction_pct: 70,
+        decoy_budget: 0,
+        evidence_budget: 1,
+        phantom_jitter_ms: 0,
+        guard_bias_pct: 88,
+        keep_decoy_capture: false,
+        recovery_bias: resource_pressure,
+        resume_standby_after_ms: 520 + u16::from(decision.dominance_margin),
     }
 }
 
@@ -315,7 +437,7 @@ fn asm_cycle_stamp() -> u64 {
 }
 
 #[cfg(target_arch = "x86_64")]
-fn weighted_score(a: u8, b: u8, c: u8, wa: u8, wb: u8, wc: u8) -> u16 {
+fn weighted_score4(a: u8, b: u8, c: u8, d: u8, wa: u8, wb: u8, wc: u8, wd: u8) -> u16 {
     let out: u64;
     unsafe {
         asm!(
@@ -327,14 +449,19 @@ fn weighted_score(a: u8, b: u8, c: u8, wa: u8, wb: u8, wc: u8) -> u16 {
             "mov {tmp}, {c}",
             "imul {tmp}, {wc}",
             "add {out}, {tmp}",
+            "mov {tmp}, {d}",
+            "imul {tmp}, {wd}",
+            "add {out}, {tmp}",
             out = lateout(reg) out,
             tmp = lateout(reg) _,
             a = in(reg) u64::from(a),
             b = in(reg) u64::from(b),
             c = in(reg) u64::from(c),
+            d = in(reg) u64::from(d),
             wa = in(reg) u64::from(wa),
             wb = in(reg) u64::from(wb),
             wc = in(reg) u64::from(wc),
+            wd = in(reg) u64::from(wd),
             options(pure, nomem, nostack)
         );
     }
@@ -342,8 +469,11 @@ fn weighted_score(a: u8, b: u8, c: u8, wa: u8, wb: u8, wc: u8) -> u16 {
 }
 
 #[cfg(not(target_arch = "x86_64"))]
-fn weighted_score(a: u8, b: u8, c: u8, wa: u8, wb: u8, wc: u8) -> u16 {
-    u16::from(a) * u16::from(wa) + u16::from(b) * u16::from(wb) + u16::from(c) * u16::from(wc)
+fn weighted_score4(a: u8, b: u8, c: u8, d: u8, wa: u8, wb: u8, wc: u8, wd: u8) -> u16 {
+    u16::from(a) * u16::from(wa)
+        + u16::from(b) * u16::from(wb)
+        + u16::from(c) * u16::from(wc)
+        + u16::from(d) * u16::from(wd)
 }
 
 #[cfg(test)]
@@ -369,6 +499,7 @@ mod tests {
 
         assert_eq!(decision.kind, FastThreatKind::DdosPressure);
         assert!(decision.overall_score > 0);
+        assert!(decision.dominance_margin > 0);
     }
 
     #[test]
@@ -384,6 +515,20 @@ mod tests {
     }
 
     #[test]
+    fn fast_path_surfaces_kinetic_pressure_for_mass_scan_style_signals() {
+        let decision = fast_path_assess(FastPathFeatures {
+            scan_pressure: 75,
+            entropy_pressure: 35,
+            kinetic_pressure: 80,
+            ..FastPathFeatures::default()
+        });
+
+        assert_eq!(decision.kind, FastThreatKind::OffensiveScan);
+        assert!(decision.kinetic_score > 0);
+        assert!(decision.dominance_margin > 0);
+    }
+
+    #[test]
     fn asm_directive_prefers_decoy_capture_for_scan_pressure() {
         let directive = asm_defense_directive(
             fast_path_assess(FastPathFeatures {
@@ -396,6 +541,26 @@ mod tests {
         assert_eq!(directive.mode, AsmDefenseMode::DecoyCapture);
         assert!(directive.keep_decoy_capture);
         assert!(directive.decoy_budget > 0);
+        assert!(directive.evidence_budget >= 4);
+        assert!(directive.guard_bias_pct >= 45);
+    }
+
+    #[test]
+    fn asm_directive_expands_evidence_ladder_for_dominant_scan() {
+        let directive = asm_defense_directive(
+            fast_path_assess(FastPathFeatures {
+                scan_pressure: 88,
+                entropy_pressure: 42,
+                kinetic_pressure: 85,
+                ..FastPathFeatures::default()
+            }),
+            FastPathHealthProfile::default(),
+        );
+
+        assert_eq!(directive.mode, AsmDefenseMode::DecoyCapture);
+        assert_eq!(directive.decoy_budget, 4);
+        assert_eq!(directive.evidence_budget, 5);
+        assert!(directive.phantom_jitter_ms <= 8);
     }
 
     #[test]
@@ -416,5 +581,23 @@ mod tests {
         assert_eq!(directive.mode, AsmDefenseMode::ZenRecovery);
         assert_eq!(directive.decoy_budget, 0);
         assert!(directive.recovery_bias);
+        assert_eq!(directive.evidence_budget, 0);
+    }
+
+    #[test]
+    fn integrity_pressure_hardens_guard_bias() {
+        let directive = asm_defense_directive(
+            fast_path_assess(FastPathFeatures {
+                integrity_pressure: 90,
+                heartbeat_pressure: 60,
+                kinetic_pressure: 20,
+                ..FastPathFeatures::default()
+            }),
+            FastPathHealthProfile::default(),
+        );
+
+        assert_eq!(directive.mode, AsmDefenseMode::ContainmentGuard);
+        assert_eq!(directive.decoy_budget, 0);
+        assert!(directive.guard_bias_pct >= 80);
     }
 }

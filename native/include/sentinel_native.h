@@ -138,6 +138,11 @@ sentinel_recovery_prediction sentinel_cpp_recovery_predictor(
     const sentinel_resource_profile *profile);
 uint64_t sentinel_asm_cycle_stamp(void);
 uint16_t sentinel_asm_weighted_mix(uint16_t a, uint16_t b, uint16_t c);
+uint16_t sentinel_asm_weighted_mix4(
+    uint16_t a,
+    uint16_t b,
+    uint16_t c,
+    uint16_t d);
 uint8_t sentinel_asm_pressure_mode(
     uint16_t scan_score,
     uint16_t intrusion_score,
@@ -155,6 +160,21 @@ uint8_t sentinel_asm_decoy_budget(
     uint8_t cpu_load_pct,
     uint8_t memory_load_pct,
     uint8_t thermal_c);
+uint8_t sentinel_asm_evidence_budget(
+    uint8_t mode,
+    uint8_t overall_score,
+    uint8_t dominance_margin,
+    uint8_t kinetic_score);
+uint8_t sentinel_asm_phantom_jitter(
+    uint8_t mode,
+    uint8_t kinetic_score,
+    uint8_t dominance_margin,
+    uint8_t resource_pressure);
+uint8_t sentinel_asm_guard_bias(
+    uint8_t mode,
+    uint8_t overall_score,
+    uint8_t dominance_margin,
+    uint8_t criticality);
 
 #ifdef __cplusplus
 }

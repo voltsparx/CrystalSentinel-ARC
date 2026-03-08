@@ -194,6 +194,21 @@ impl SentinelRuntime {
         );
         let mut assessment = self.policy.assess(signal, health.clone());
         let autonomy_plan = plan_autonomy(config, &assessment.signal, &health, asm_directive);
+        append_rationale(
+            &mut assessment,
+            &format!(
+                "asm_kind={} scan={} intrusion={} integrity={} ddos={} kinetic={} margin={} guard_bias_pct={} evidence_budget={}",
+                fast_path.kind.as_str(),
+                fast_path.scan_score,
+                fast_path.intrusion_score,
+                fast_path.integrity_score,
+                fast_path.ddos_score,
+                fast_path.kinetic_score,
+                fast_path.dominance_margin,
+                asm_directive.guard_bias_pct,
+                asm_directive.evidence_budget
+            ),
+        );
 
         apply_runtime_bounds(
             &mut assessment,
@@ -214,7 +229,7 @@ impl SentinelRuntime {
             None
         } else {
             DecoyGovernor::plan(config, &assessment.signal, &health)
-                .map(|plan| refine_decoy_plan(plan, &autonomy_plan))
+                .map(|plan| refine_decoy_plan(plan, &autonomy_plan, asm_directive))
         };
 
         let plan = adapt_plan(
@@ -477,6 +492,20 @@ fn adapt_plan(
         push_unique(&mut plan.actions, ResponseAction::ShiftGuardianCoverage);
         push_unique(&mut plan.actions, ResponseAction::SuspendPeerTrust);
     }
+    if is_wireless_management_event(assessment) {
+        push_unique(
+            &mut plan.actions,
+            ResponseAction::ShieldWirelessManagementPlane,
+        );
+        push_unique(&mut plan.actions, ResponseAction::PinTrustedBackhaulLinks);
+        push_unique(&mut plan.actions, ResponseAction::ProtectFragileAssets);
+        push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+    }
+    if is_delivery_chain_event(assessment) {
+        push_unique(&mut plan.actions, ResponseAction::HoldArtifactDelivery);
+        push_unique(&mut plan.actions, ResponseAction::RouteToShadowAnalysis);
+        push_unique(&mut plan.actions, ResponseAction::QuarantineArtifact);
+    }
 
     match posture {
         RuntimePosture::BaselineObserve => {
@@ -497,7 +526,17 @@ fn adapt_plan(
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
                 "Decoy-first capture posture opened a bounded IDF/Phantom window. {} awareness={} architecture={}",
-                plan.narrative, awareness.summary, autonomy_plan.narrative
+                format!(
+                    "{} asm_mode={} observation_window_ms={} evidence_budget={} phantom_jitter_ms={} guard_bias_pct={}",
+                    plan.narrative,
+                    asm_directive.mode.as_str(),
+                    asm_directive.observation_window_ms,
+                    asm_directive.evidence_budget,
+                    asm_directive.phantom_jitter_ms,
+                    asm_directive.guard_bias_pct
+                ),
+                awareness.summary,
+                autonomy_plan.narrative
             );
         }
         RuntimePosture::BoundedContainment => {
@@ -506,16 +545,26 @@ fn adapt_plan(
                 push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
             }
             plan.narrative = format!(
-                "Bounded containment posture applied. {} awareness={} architecture={}",
-                plan.narrative, awareness.summary, autonomy_plan.narrative
+                "Bounded containment posture applied. {} asm_mode={} observation_window_ms={} guard_bias_pct={} awareness={} architecture={}",
+                plan.narrative,
+                asm_directive.mode.as_str(),
+                asm_directive.observation_window_ms,
+                asm_directive.guard_bias_pct,
+                awareness.summary,
+                autonomy_plan.narrative
             );
         }
         RuntimePosture::ProtectiveIsolation => {
             push_unique(&mut plan.actions, ResponseAction::VerifySelfIntegrity);
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
-                "Protective isolation posture applied under heavy pressure. {} awareness={} architecture={}",
-                plan.narrative, awareness.summary, autonomy_plan.narrative
+                "Protective isolation posture applied under heavy pressure. {} asm_mode={} observation_window_ms={} guard_bias_pct={} awareness={} architecture={}",
+                plan.narrative,
+                asm_directive.mode.as_str(),
+                asm_directive.observation_window_ms,
+                asm_directive.guard_bias_pct,
+                awareness.summary,
+                autonomy_plan.narrative
             );
         }
         RuntimePosture::ZenRecovery => {
@@ -526,10 +575,12 @@ fn adapt_plan(
             push_unique(&mut plan.actions, ResponseAction::LimitAutomation);
             push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
             plan.narrative = format!(
-                "ASM zen recovery posture reduced exposure and non-essential activity while the defended system regains health. asm_mode={} observation_window_ms={} exposure_reduction_pct={} resume_standby_after_ms={} awareness={} architecture={}",
+                "ASM zen recovery posture reduced exposure and non-essential activity while the defended system regains health. asm_mode={} observation_window_ms={} exposure_reduction_pct={} evidence_budget={} guard_bias_pct={} resume_standby_after_ms={} awareness={} architecture={}",
                 asm_directive.mode.as_str(),
                 asm_directive.observation_window_ms,
                 asm_directive.exposure_reduction_pct,
+                asm_directive.evidence_budget,
+                asm_directive.guard_bias_pct,
                 asm_directive.resume_standby_after_ms,
                 awareness.summary,
                 autonomy_plan.narrative
@@ -630,9 +681,22 @@ fn adapt_plan(
         plan.narrative = format!("{} recovery={}", plan.narrative, recovery.summary);
     }
 
+    if is_delivery_chain_event(assessment) {
+        plan.narrative = format!(
+            "{} delivery_guard=hold-and-verify shadow_path=quarantine-and-analyze",
+            plan.narrative
+        );
+    }
+
     if autonomy_plan.allow_mesh_distribution && is_mesh_peer_integrity_event(assessment) {
         plan.narrative = format!(
             "{} mesh=peer-heartbeat-guard trust=suspended coverage=shifted",
+            plan.narrative
+        );
+    }
+    if is_wireless_management_event(assessment) {
+        plan.narrative = format!(
+            "{} wireless_guard=local-management-shield backhaul=trusted-links-only",
             plan.narrative
         );
     }
@@ -640,7 +704,11 @@ fn adapt_plan(
     plan
 }
 
-fn refine_decoy_plan(mut plan: DecoyPlan, autonomy_plan: &AutonomyPlan) -> DecoyPlan {
+fn refine_decoy_plan(
+    mut plan: DecoyPlan,
+    autonomy_plan: &AutonomyPlan,
+    asm_directive: AsmDefenseDirective,
+) -> DecoyPlan {
     plan.ghost_slots = plan.ghost_slots.min(autonomy_plan.max_decoy_slots);
     if autonomy_plan.max_decoy_slots == 0 {
         plan.primitives.clear();
@@ -654,7 +722,18 @@ fn refine_decoy_plan(mut plan: DecoyPlan, autonomy_plan: &AutonomyPlan) -> Decoy
     let mut disable_phantom = false;
     if let Some(phantom) = &mut plan.phantom_observation {
         phantom.sample_budget = phantom.sample_budget.min(autonomy_plan.phantom_sample_cap);
-        if autonomy_plan.phantom_sample_cap == 0 {
+        phantom.sample_budget = phantom.sample_budget.min(asm_directive.evidence_budget.max(1));
+        if asm_directive.observation_window_ms > 0 {
+            phantom.decision_window_ms = phantom
+                .decision_window_ms
+                .min(asm_directive.observation_window_ms);
+        }
+        if asm_directive.phantom_jitter_ms > 0 {
+            phantom.jitter_ms = phantom
+                .jitter_ms
+                .min(u32::from(asm_directive.phantom_jitter_ms));
+        }
+        if autonomy_plan.phantom_sample_cap == 0 || asm_directive.evidence_budget == 0 {
             disable_phantom = true;
         }
     }
@@ -669,9 +748,23 @@ fn refine_decoy_plan(mut plan: DecoyPlan, autonomy_plan: &AutonomyPlan) -> Decoy
         plan.jitter_ms = plan.jitter_ms.min(16);
     }
 
+    if asm_directive.phantom_jitter_ms > 0 {
+        plan.jitter_ms = plan
+            .jitter_ms
+            .min(u32::from(asm_directive.phantom_jitter_ms));
+    }
+    plan.ghost_slots = plan
+        .ghost_slots
+        .min(u16::from(asm_directive.evidence_budget.max(1)));
+
     plan.narrative = format!(
-        "{} architecture={}",
-        plan.narrative, autonomy_plan.narrative
+        "{} asm_mode={} evidence_budget={} phantom_jitter_ms={} guard_bias_pct={} architecture={}",
+        plan.narrative,
+        asm_directive.mode.as_str(),
+        asm_directive.evidence_budget,
+        asm_directive.phantom_jitter_ms,
+        asm_directive.guard_bias_pct,
+        autonomy_plan.narrative
     );
     plan
 }
@@ -685,6 +778,56 @@ fn is_mesh_peer_integrity_event(assessment: &ThreatAssessment) -> bool {
         .labels
         .iter()
         .any(|label| matches!(label.as_str(), "mesh" | "heartbeat" | "peer_trust"))
+}
+
+fn is_delivery_chain_event(assessment: &ThreatAssessment) -> bool {
+    if matches!(
+        assessment.signal.family,
+        AttackFamily::PayloadStager | AttackFamily::ExploitDelivery
+    ) {
+        return true;
+    }
+
+    assessment
+        .signal
+        .recognition
+        .as_ref()
+        .map(|recognition| {
+            recognition.labels.iter().any(|label| {
+                matches!(
+                    label.as_str(),
+                    "stager"
+                        | "reverse_http"
+                        | "reverse_https"
+                        | "reverse_tcp"
+                        | "delivery-wrapper"
+                        | "backdoor_wrapper"
+                        | "document-delivery"
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn is_wireless_management_event(assessment: &ThreatAssessment) -> bool {
+    assessment
+        .signal
+        .analysis_lanes
+        .iter()
+        .any(|lane| lane == "wireless-guard")
+        || assessment
+            .signal
+            .recognition
+            .as_ref()
+            .map(|recognition| {
+                recognition.labels.iter().any(|label| {
+                    matches!(
+                        label.as_str(),
+                        "wireless" | "deauth" | "disassociation" | "management_frame"
+                    )
+                })
+            })
+            .unwrap_or(false)
 }
 
 fn teaching_hint_for(
@@ -1002,6 +1145,20 @@ mod tests {
             .plan
             .actions
             .contains(&ResponseAction::SampleAmbientResonance));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::HoldArtifactDelivery));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::RouteToShadowAnalysis));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::QuarantineArtifact));
+        assert!(decision.plan.narrative.contains("route-to-shadow-analysis")
+            || decision.plan.actions.contains(&ResponseAction::RouteToShadowAnalysis));
     }
 
     #[test]

@@ -52,9 +52,13 @@ The native header now exposes three defensive contracts:
 - `sentinel_cpp_behavior_matrix`: next-move prediction and evidence-goal advice
 - `sentinel_cpp_recovery_predictor`: quiet-recovery and exposure-reduction advice
 - `sentinel_asm_weighted_mix`: tiny weighted pressure kernel
+- `sentinel_asm_weighted_mix4`: four-lane weighted pressure kernel
 - `sentinel_asm_pressure_mode`: low-latency mode selection for standby, decoy capture, containment guard, or zen recovery
 - `sentinel_asm_observation_window`: low-latency observation window sizing
 - `sentinel_asm_decoy_budget`: low-latency decoy budget capping
+- `sentinel_asm_evidence_budget`: low-latency evidence-ladder sizing
+- `sentinel_asm_phantom_jitter`: bounded Phantom jitter guidance
+- `sentinel_asm_guard_bias`: fast-path authority weighting for runtime lane rebalance
 
 The current design split is intentional:
 

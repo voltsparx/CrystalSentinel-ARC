@@ -8,6 +8,9 @@
 global sentinel_asm_pressure_mode
 global sentinel_asm_observation_window
 global sentinel_asm_decoy_budget
+global sentinel_asm_evidence_budget
+global sentinel_asm_phantom_jitter
+global sentinel_asm_guard_bias
 
 section .text
 
@@ -131,4 +134,93 @@ sentinel_asm_decoy_budget:
     jbe .done
     mov eax, 1
 .done:
+    ret
+
+sentinel_asm_evidence_budget:
+    ; rcx=mode, rdx=overall_score, r8=dominance_margin, r9=kinetic_score
+    xor eax, eax
+    cmp ecx, 1
+    je .scan_evidence
+    cmp ecx, 2
+    je .contain_evidence
+    ret
+
+.scan_evidence:
+    mov eax, 4
+    cmp r8b, 40
+    jb .check_scan_kinetic
+    mov eax, 5
+.check_scan_kinetic:
+    cmp r9b, 80
+    jb .evidence_done
+    mov eax, 5
+    ret
+
+.contain_evidence:
+    mov eax, 2
+    cmp dl, 95
+    jb .evidence_done
+    mov eax, 3
+
+.evidence_done:
+    ret
+
+sentinel_asm_phantom_jitter:
+    ; rcx=mode, rdx=kinetic_score, r8=dominance_margin, r9=resource_pressure
+    xor eax, eax
+    cmp ecx, 1
+    jne .jitter_done
+    mov eax, 12
+    cmp r9b, 0
+    je .check_kinetic
+    mov eax, 6
+    ret
+.check_kinetic:
+    cmp dl, 80
+    jb .check_margin
+    mov eax, 8
+    ret
+.check_margin:
+    cmp r8b, 40
+    jb .jitter_done
+    mov eax, 8
+.jitter_done:
+    ret
+
+sentinel_asm_guard_bias:
+    ; rcx=mode, rdx=overall_score, r8=dominance_margin, r9=criticality
+    xor eax, eax
+    cmp ecx, 3
+    je .zen_bias
+    cmp ecx, 2
+    je .contain_bias
+    cmp ecx, 1
+    je .scan_bias
+    mov eax, 10
+    ret
+
+.scan_bias:
+    mov eax, 45
+    cmp r8b, 40
+    jb .bias_done
+    mov eax, 55
+    ret
+
+.contain_bias:
+    mov eax, 60
+    cmp r9b, 0
+    je .check_contain_score
+    mov eax, 82
+    ret
+.check_contain_score:
+    cmp dl, 95
+    jb .bias_done
+    mov eax, 68
+    ret
+
+.zen_bias:
+    mov eax, 20
+    ret
+
+.bias_done:
     ret

@@ -184,10 +184,10 @@ pub fn plan_autonomy(
                 DeploymentShape::MultiNodeMesh
             ),
             native_work_split: NativeWorkSplit {
-                rust_control_pct: 30,
+                rust_control_pct: 25,
                 c_guard_pct: 20,
-                cpp_classifier_pct: 20,
-                asm_fast_path_pct: 30,
+                cpp_classifier_pct: 15,
+                asm_fast_path_pct: 40,
             },
             narrative: String::new(),
         },
@@ -210,10 +210,10 @@ pub fn plan_autonomy(
             plan.correlation_lanes = plan.correlation_lanes.max(2);
             plan.stability_headroom_pct = plan.stability_headroom_pct.saturating_sub(5).max(25);
             plan.native_work_split = NativeWorkSplit {
-                rust_control_pct: 30,
+                rust_control_pct: 25,
                 c_guard_pct: 20,
-                cpp_classifier_pct: 20,
-                asm_fast_path_pct: 30,
+                cpp_classifier_pct: 15,
+                asm_fast_path_pct: 40,
             };
         }
     }
@@ -228,6 +228,47 @@ pub fn plan_autonomy(
         plan.max_decoy_slots = plan.max_decoy_slots.min(2);
         plan.phantom_sample_cap = plan.phantom_sample_cap.min(2);
         plan.allow_spot_mimicry = false;
+    }
+
+    if matches!(
+        asm_directive.mode,
+        AsmDefenseMode::DecoyCapture | AsmDefenseMode::ContainmentGuard
+    ) {
+        plan.packet_lanes = plan.packet_lanes.max(4);
+        plan.correlation_lanes = plan.correlation_lanes.max(2);
+        if asm_directive.guard_bias_pct >= 75 {
+            plan.native_work_split = NativeWorkSplit {
+                rust_control_pct: 25,
+                c_guard_pct: 25,
+                cpp_classifier_pct: 10,
+                asm_fast_path_pct: 40,
+            };
+        } else if asm_directive.guard_bias_pct >= 50 {
+            plan.native_work_split = NativeWorkSplit {
+                rust_control_pct: 25,
+                c_guard_pct: 20,
+                cpp_classifier_pct: 15,
+                asm_fast_path_pct: 40,
+            };
+        } else {
+            plan.native_work_split = NativeWorkSplit {
+                rust_control_pct: 30,
+                c_guard_pct: 20,
+                cpp_classifier_pct: 15,
+                asm_fast_path_pct: 35,
+            };
+        }
+        if matches!(asm_directive.mode, AsmDefenseMode::DecoyCapture) {
+            plan.phantom_sample_cap = plan
+                .phantom_sample_cap
+                .max(asm_directive.evidence_budget.min(5));
+            plan.max_decoy_slots = plan
+                .max_decoy_slots
+                .min(u16::from(asm_directive.evidence_budget.max(1)));
+        } else {
+            plan.max_decoy_slots = plan.max_decoy_slots.min(1);
+            plan.phantom_sample_cap = plan.phantom_sample_cap.min(2);
+        }
     }
 
     if matches!(asm_directive.mode, AsmDefenseMode::ZenRecovery) {
@@ -369,7 +410,7 @@ mod tests {
 
         assert_eq!(plan.pattern, ArchitecturePattern::PressureShield);
         assert!(plan.packet_lanes >= 4);
-        assert_eq!(plan.native_work_split.asm_fast_path_pct, 30);
+        assert!(plan.native_work_split.asm_fast_path_pct >= 40);
         assert_eq!(plan.native_work_split.total(), 100);
     }
 }
