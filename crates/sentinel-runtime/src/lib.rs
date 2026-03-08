@@ -1273,4 +1273,46 @@ mod tests {
             .narrative
             .contains("mesh=peer-heartbeat-guard"));
     }
+
+    #[test]
+    fn wireless_management_disruption_uses_local_shield_actions() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig {
+            deployment_shape: DeploymentShape::MultiNodeMesh,
+            performance_profile: PerformanceProfile::Balanced,
+            ..RuntimeConfig::default()
+        };
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Packet,
+            source: "radio-edge-03".to_string(),
+            summary: "deauth_flood disassociation_storm management_frame_spike"
+                .to_string(),
+            health: HealthSnapshot::default(),
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert_eq!(decision.assessment.signal.family, AttackFamily::VolumetricFlood);
+        assert_eq!(decision.posture, RuntimePosture::ProtectiveIsolation);
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ShieldWirelessManagementPlane));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::PinTrustedBackhaulLinks));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ProtectFragileAssets));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::PreserveServiceContinuity));
+        assert!(decision
+            .plan
+            .narrative
+            .contains("wireless_guard=local-management-shield"));
+    }
 }
