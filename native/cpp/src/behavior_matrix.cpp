@@ -67,6 +67,21 @@ extern "C" sentinel_behavior_matrix sentinel_cpp_behavior_matrix(
     matrix.evidence_goal = "stager-chain";
     matrix.confidence = 91;
     matrix.prefers_decoy_first = 1;
+  } else if (contains(event->summary, "deauth_flood") ||
+             contains(event->summary, "disassociation_storm") ||
+             contains(event->summary, "management_frame_spike")) {
+    matrix.predicted_identity = "wireless-management-disruption";
+    matrix.next_move = "local-radio-shield";
+    matrix.evidence_goal = "management-frame-proof";
+    matrix.confidence = 93;
+    matrix.protect_fragile_assets = 1;
+  } else if (contains(event->summary, "mesh_heartbeat_missing") ||
+             contains(event->summary, "guardian_pulse_invalid") ||
+             contains(event->summary, "peer_trust_drift")) {
+    matrix.predicted_identity = "mesh-heartbeat-drift";
+    matrix.next_move = "shift-guardian-coverage";
+    matrix.evidence_goal = "heartbeat-integrity";
+    matrix.confidence = 96;
   }
 
   if (fragile_profile(profile)) {

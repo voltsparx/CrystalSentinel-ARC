@@ -60,6 +60,20 @@ sentinel_native_budget sentinel_c_budget_window(
     budget.observation_window_ms = 180;
     budget.decoy_cap = 4;
     budget.phantom_budget = 5;
+  } else if (contains(event->summary, "deauth_flood") ||
+             contains(event->summary, "disassociation_storm") ||
+             contains(event->summary, "management_frame_spike")) {
+    budget.profile = "radio-shield";
+    budget.observation_window_ms = 100;
+    budget.decoy_cap = 0;
+    budget.phantom_budget = 1;
+  } else if (contains(event->summary, "mesh_heartbeat_missing") ||
+             contains(event->summary, "guardian_pulse_invalid") ||
+             contains(event->summary, "peer_trust_drift")) {
+    budget.profile = "mesh-trust";
+    budget.observation_window_ms = 120;
+    budget.decoy_cap = 0;
+    budget.phantom_budget = 1;
   } else if (contains(event->summary, "nmap") ||
              contains(event->summary, "service_probe") ||
              contains(event->summary, "version_scan")) {

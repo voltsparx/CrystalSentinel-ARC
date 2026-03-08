@@ -31,6 +31,20 @@ sentinel_protocol_budget sentinel_c_protocol_budget(
     budget.mode = "staged-transport-triage";
     budget.observation_window_ms = 150;
     budget.decoy_cap = 1;
+  } else if (contains(event->summary, "deauth_flood") ||
+             contains(event->summary, "disassociation_storm") ||
+             contains(event->summary, "management_frame_spike")) {
+    budget.protocol_family = "wireless-management";
+    budget.mode = "radio-shield";
+    budget.observation_window_ms = 100;
+    budget.decoy_cap = 0;
+  } else if (contains(event->summary, "mesh_heartbeat_missing") ||
+             contains(event->summary, "guardian_pulse_invalid") ||
+             contains(event->summary, "peer_trust_drift")) {
+    budget.protocol_family = "mesh-heartbeat";
+    budget.mode = "trust-tightening";
+    budget.observation_window_ms = 120;
+    budget.decoy_cap = 0;
   } else if (contains(event->summary, "http") || contains(event->summary, "uri_sqli") ||
              contains(event->summary, "service_probe")) {
     budget.protocol_family = "http";

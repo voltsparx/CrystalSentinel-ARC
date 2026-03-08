@@ -43,6 +43,15 @@ extern "C" sentinel_recovery_prediction sentinel_cpp_recovery_predictor(
     prediction.keep_minimum_observation = 1;
     prediction.reduce_exposure_pct = 80;
   } else if (event != nullptr && event->summary != nullptr &&
+             (contains(event->summary, "mesh_heartbeat_missing") ||
+              contains(event->summary, "guardian_pulse_invalid") ||
+              contains(event->summary, "peer_trust_drift"))) {
+    prediction.mode = "mesh-heal";
+    prediction.reason = "heartbeat-trust-drift";
+    prediction.quiet_window_ms = 360;
+    prediction.keep_minimum_observation = 1;
+    prediction.reduce_exposure_pct = 35;
+  } else if (event != nullptr && event->summary != nullptr &&
              (contains(event->summary, "integrity_breach") ||
               contains(event->summary, "rootkit") ||
               contains(event->summary, "tamper"))) {

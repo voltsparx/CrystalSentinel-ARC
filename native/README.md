@@ -10,11 +10,14 @@ deterministic memory layout, or extremely tight timing.
 
 - `c/`: resource guards, descriptor-safe compatibility shims, packet-adjacent
   system helpers, observation budgeting, protocol/mesh safety caps, fragility
-  caps, exposure reduction, and OS-facing primitives
+  caps, exposure reduction, dynamic load balancing, heartbeat auditing, and
+  OS-facing primitives
 - `cpp/`: richer attack-template models, stateful classifiers, scan-behavior
-  prediction, behavior matrices, recovery prediction, and ambient-state support
+  prediction, behavior matrices, recovery prediction, ambient-state support,
+  and guardian-facing voice translation for operator-safe telemetry summaries
 - `asm/`: timing primitives, weighted pressure kernels, ultra-low-latency
-  directive helpers, and future bounded direct-to-wire defensive interfaces
+  directive helpers, load-balance intensity kernels, heartbeat trust modes, and
+  future bounded direct-to-wire defensive interfaces
 - `include/`: shared header contracts across native components
 
 ## Current Status
@@ -39,18 +42,21 @@ goal for future work, not as live packet injection code.
 
 ## Native Contracts
 
-The native header now exposes three defensive contracts:
+The native header now exposes the current defensive contract surface:
 
 - `sentinel_c_resource_guard`: low-level guardrail classification
 - `sentinel_c_budget_window`: stability-first observation and decoy budgeting
 - `sentinel_c_exposure_guard`: low-resource exposure reduction and zen fallback guidance
 - `sentinel_c_protocol_budget`: protocol-aware observation and decoy caps
 - `sentinel_c_mesh_guard`: multi-node and gentle-device action caps
+- `sentinel_c_dynamic_load_balancer`: background decoy recoil and micro-pacing guidance
+- `sentinel_c_mesh_heartbeat_audit`: trusted, missing, drift, and compromised peer state
 - `sentinel_cpp_classify`: stateful recognition hints
 - `sentinel_cpp_predict_scan_path`: scan-behavior prediction and posture advice
 - `sentinel_cpp_ambient_state`: ambient pressure modeling and zen-recovery recommendations
 - `sentinel_cpp_behavior_matrix`: next-move prediction and evidence-goal advice
 - `sentinel_cpp_recovery_predictor`: quiet-recovery and exposure-reduction advice
+- `sentinel_cpp_guardian_report`: calm operator-facing status and threat phrasing
 - `sentinel_asm_weighted_mix`: tiny weighted pressure kernel
 - `sentinel_asm_weighted_mix4`: four-lane weighted pressure kernel
 - `sentinel_asm_pressure_mode`: low-latency mode selection for standby, decoy capture, containment guard, or zen recovery
@@ -59,6 +65,9 @@ The native header now exposes three defensive contracts:
 - `sentinel_asm_evidence_budget`: low-latency evidence-ladder sizing
 - `sentinel_asm_phantom_jitter`: bounded Phantom jitter guidance
 - `sentinel_asm_guard_bias`: fast-path authority weighting for runtime lane rebalance
+- `sentinel_asm_load_balance_intensity`: low-latency background work recoil guidance
+- `sentinel_asm_micro_pacing_gap`: low-latency fragile-device pacing gap sizing
+- `sentinel_asm_heartbeat_guard_mode`: low-latency heartbeat trust posture selection
 
 The current design split is intentional:
 
@@ -80,6 +89,7 @@ When native compilation is enabled, use:
 ```powershell
 cmake -S native -B native/build
 cmake --build native/build
+ctest --test-dir native/build --output-on-failure
 ```
 
 ASM support is intentionally opt-in in the initial scaffold.

@@ -25,6 +25,16 @@ extern "C" sentinel_native_result sentinel_cpp_classify(const sentinel_native_ev
   if (contains(event->summary, "oauth_token_abuse")) {
     result.decision = "identity-abuse";
     result.adjusted_confidence = 90;
+  } else if (contains(event->summary, "mesh_heartbeat_missing") ||
+             contains(event->summary, "guardian_pulse_invalid") ||
+             contains(event->summary, "peer_trust_drift")) {
+    result.decision = "mesh-heartbeat-drift";
+    result.adjusted_confidence = 96;
+  } else if (contains(event->summary, "deauth_flood") ||
+             contains(event->summary, "disassociation_storm") ||
+             contains(event->summary, "management_frame_spike")) {
+    result.decision = "wireless-management-disruption";
+    result.adjusted_confidence = 93;
   } else if (contains(event->summary, "dns_tunnel")) {
     result.decision = "dns-tunnel";
     result.adjusted_confidence = 92;

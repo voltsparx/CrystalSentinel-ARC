@@ -932,7 +932,7 @@ fn push_unique(actions: &mut Vec<ResponseAction>, action: ResponseAction) {
 mod tests {
     use super::{RuntimePosture, SentinelRuntime};
     use sentinel_autonomy::ArchitecturePattern;
-    use sentinel_common::{HealthSnapshot, MitigationStage, TelemetryKind};
+    use sentinel_common::{AttackFamily, HealthSnapshot, MitigationStage, TelemetryKind};
     use sentinel_config::{DeploymentShape, PerformanceProfile, RuntimeConfig};
     use sentinel_response::ResponseAction;
     use sentinel_telemetry::TelemetryEvent;

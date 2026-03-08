@@ -52,3 +52,19 @@ indicators = [
   "readsms",
   "readcalllogs",
 ]
+
+[[rules]]
+id = "channel-005"
+name = "wireless-management-disruption"
+family = "volumetric-flood"
+recommended_stage = "contain"
+severity = "critical"
+summary = "Flags wireless management-frame disruption pressure so local defenses can shield the control plane and pin trusted links."
+indicators = [
+  "deauth_flood",
+  "deauthentication_storm",
+  "disassociation_storm",
+  "management_frame_spike",
+  "beacon_flood",
+  "reason_code_storm",
+]

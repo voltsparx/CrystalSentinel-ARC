@@ -11,6 +11,11 @@ global sentinel_asm_decoy_budget
 global sentinel_asm_evidence_budget
 global sentinel_asm_phantom_jitter
 global sentinel_asm_guard_bias
+global sentinel_asm_load_balance_intensity
+global sentinel_asm_micro_pacing_gap
+global sentinel_asm_heartbeat_guard_mode
+global sentinel_asm_guardian_mode
+global sentinel_asm_mesh_gossip_ttl
 
 section .text
 
@@ -223,4 +228,205 @@ sentinel_asm_guard_bias:
     ret
 
 .bias_done:
+    ret
+
+sentinel_asm_load_balance_intensity:
+    ; rcx=cpu_load_pct, rdx=gpu_load_pct, r8=link_pressure_pct, r9=queue_fill_pct
+    mov eax, 100
+    movzx r10d, cl
+    cmp r10d, 90
+    jae .load_balance_min
+    movzx r10d, dl
+    cmp r10d, 90
+    jae .load_balance_min
+    movzx r10d, r8b
+    cmp r10d, 90
+    jae .load_balance_min
+    movzx r10d, r9b
+    cmp r10d, 90
+    jae .load_balance_min
+
+    movzx r10d, cl
+    cmp r10d, 80
+    jae .load_balance_guarded
+    movzx r10d, dl
+    cmp r10d, 80
+    jae .load_balance_guarded
+    movzx r10d, r8b
+    cmp r10d, 80
+    jae .load_balance_guarded
+    movzx r10d, r9b
+    cmp r10d, 80
+    jae .load_balance_guarded
+
+    movzx r10d, cl
+    cmp r10d, 70
+    jae .load_balance_recoil
+    movzx r10d, dl
+    cmp r10d, 70
+    jae .load_balance_recoil
+    movzx r10d, r8b
+    cmp r10d, 70
+    jae .load_balance_recoil
+    movzx r10d, r9b
+    cmp r10d, 70
+    jae .load_balance_recoil
+    ret
+
+.load_balance_recoil:
+    mov eax, 40
+    ret
+
+.load_balance_guarded:
+    mov eax, 20
+    ret
+
+.load_balance_min:
+    mov eax, 5
+    ret
+
+sentinel_asm_micro_pacing_gap:
+    ; rcx=fragility, rdx=queue_fill_pct, r8=link_pressure_pct, r9=passive_only
+    mov eax, 40
+    cmp r9b, 0
+    jne .micro_passive
+    cmp ecx, 2
+    je .micro_critical
+    cmp ecx, 1
+    je .micro_sensitive
+    jmp .micro_network
+
+.micro_passive:
+    mov eax, 900
+    ret
+
+.micro_critical:
+    mov eax, 700
+    jmp .micro_network
+
+.micro_sensitive:
+    mov eax, 400
+
+.micro_network:
+    movzx r10d, dl
+    cmp r10d, 95
+    jae .micro_queue_critical
+    cmp r10d, 85
+    jae .micro_queue_high
+    movzx r10d, r8b
+    cmp r10d, 90
+    jae .micro_link_critical
+    cmp r10d, 80
+    jae .micro_link_high
+    ret
+
+.micro_queue_high:
+    cmp eax, 450
+    jae .micro_done
+    mov eax, 450
+    ret
+
+.micro_queue_critical:
+    cmp eax, 800
+    jae .micro_done
+    mov eax, 800
+    ret
+
+.micro_link_high:
+    cmp eax, 500
+    jae .micro_done
+    mov eax, 500
+    ret
+
+.micro_link_critical:
+    cmp eax, 750
+    jae .micro_done
+    mov eax, 750
+
+.micro_done:
+    ret
+
+sentinel_asm_heartbeat_guard_mode:
+    ; rcx=missing_peers, rdx=malformed_peers, r8=jitter_us, r9=passive_only
+    ; return: 0=steady, 1=tighten-trust, 2=shift-coverage, 3=quarantine
+    xor eax, eax
+    cmp dl, 0
+    jne .heartbeat_quarantine
+    cmp r8w, 10
+    ja .heartbeat_quarantine
+    cmp cl, 0
+    jne .heartbeat_shift
+    cmp r8w, 2
+    ja .heartbeat_tighten
+    cmp r9b, 0
+    jne .heartbeat_tighten
+    ret
+
+.heartbeat_tighten:
+    mov eax, 1
+    ret
+
+.heartbeat_shift:
+    mov eax, 2
+    ret
+
+.heartbeat_quarantine:
+    mov eax, 3
+    ret
+
+sentinel_asm_guardian_mode:
+    ; rcx=protected_nodes, rdx=gentle_nodes, r8=cpu_load_pct, r9=passive_only
+    ; return: 0=local, 1=adopt, 2=shared, 3=shadow-gateway
+    xor eax, eax
+    cmp r9b, 0
+    jne .guardian_shadow
+    cmp r8b, 88
+    jae .guardian_shadow
+    cmp cx, 0
+    jne .guardian_adopt
+    cmp dx, 0
+    jne .guardian_adopt
+    cmp r8b, 60
+    jae .guardian_shared
+    ret
+
+.guardian_adopt:
+    mov eax, 1
+    ret
+
+.guardian_shared:
+    mov eax, 2
+    ret
+
+.guardian_shadow:
+    mov eax, 3
+    ret
+
+sentinel_asm_mesh_gossip_ttl:
+    ; rcx=confidence, rdx=integrity_event, r8=mesh_pressure, r9=shadow_gateway
+    mov eax, 0
+    cmp r9b, 0
+    jne .ttl_shadow
+    cmp dl, 0
+    jne .ttl_integrity
+    cmp cl, 90
+    jae .ttl_high_confidence
+    cmp r8b, 0
+    jne .ttl_mesh_pressure
+    ret
+
+.ttl_shadow:
+    mov eax, 120
+    ret
+
+.ttl_integrity:
+    mov eax, 140
+    ret
+
+.ttl_high_confidence:
+    mov eax, 220
+    ret
+
+.ttl_mesh_pressure:
+    mov eax, 160
     ret

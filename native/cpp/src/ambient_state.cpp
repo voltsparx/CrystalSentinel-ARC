@@ -44,6 +44,14 @@ extern "C" sentinel_ambient_state sentinel_cpp_ambient_state(
     state.observation_window_ms = 80;
     state.pressure_bias = 90;
     state.decoy_budget = 0;
+  } else if (contains(event->summary, "deauth_flood") ||
+             contains(event->summary, "disassociation_storm") ||
+             contains(event->summary, "management_frame_spike")) {
+    state.ambient_state = "radio-pressure";
+    state.recommended_mode = "containment-guard";
+    state.observation_window_ms = 90;
+    state.pressure_bias = 88;
+    state.decoy_budget = 0;
   } else if (contains(event->summary, "masscan") ||
              contains(event->summary, "async_scan") ||
              contains(event->summary, "wide_port_sweep")) {
@@ -61,6 +69,14 @@ extern "C" sentinel_ambient_state sentinel_cpp_ambient_state(
     state.observation_window_ms = 120;
     state.pressure_bias = 84;
     state.decoy_budget = 1;
+  } else if (contains(event->summary, "mesh_heartbeat_missing") ||
+             contains(event->summary, "guardian_pulse_invalid") ||
+             contains(event->summary, "peer_trust_drift")) {
+    state.ambient_state = "mesh-trust-pressure";
+    state.recommended_mode = "containment-guard";
+    state.observation_window_ms = 100;
+    state.pressure_bias = 86;
+    state.decoy_budget = 0;
   }
 
   if (high_host_pressure(profile)) {
