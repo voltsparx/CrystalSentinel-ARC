@@ -49,22 +49,22 @@ pub fn native_layer_manifest() -> Vec<NativeLayerSpec> {
         NativeLayerSpec {
             language: NativeLanguage::C,
             library: "sentinel-native-c",
-            responsibility: "Resource guards, stability-first observation budgeting, protocol and mesh safety caps, exposure reduction planning, descriptor-safe compatibility shims, and OS-facing packet helpers.",
-            entrypoint: "sentinel_c_resource_guard / sentinel_c_budget_window / sentinel_c_exposure_guard / sentinel_c_protocol_budget / sentinel_c_mesh_guard",
+            responsibility: "Resource guards, stability-first observation budgeting, protocol and mesh safety caps, exposure reduction planning, dynamic load balancing, guardian handoff, heartbeat audits, descriptor-safe compatibility shims, and OS-facing packet helpers.",
+            entrypoint: "sentinel_c_resource_guard / sentinel_c_budget_window / sentinel_c_exposure_guard / sentinel_c_protocol_budget / sentinel_c_mesh_guard / sentinel_c_dynamic_load_balancer / sentinel_c_mesh_heartbeat_audit / sentinel_c_guardian_handoff",
             status: NativeLayerStatus::Scaffolded,
         },
         NativeLayerSpec {
             language: NativeLanguage::Cpp,
             library: "sentinel-native-cpp",
-            responsibility: "Stateful classifiers, scan-path prediction, ambient-state modeling, behavior matrices, recovery prediction, and attack-template modeling.",
-            entrypoint: "sentinel_cpp_classify / sentinel_cpp_predict_scan_path / sentinel_cpp_ambient_state / sentinel_cpp_behavior_matrix / sentinel_cpp_recovery_predictor",
+            responsibility: "Stateful classifiers, scan-path prediction, ambient-state modeling, behavior matrices, recovery prediction, guardian reporting, mesh gossip planning, and attack-template modeling.",
+            entrypoint: "sentinel_cpp_classify / sentinel_cpp_predict_scan_path / sentinel_cpp_ambient_state / sentinel_cpp_behavior_matrix / sentinel_cpp_recovery_predictor / sentinel_cpp_guardian_report / sentinel_cpp_mesh_gossip",
             status: NativeLayerStatus::Scaffolded,
         },
         NativeLayerSpec {
             language: NativeLanguage::Asm,
             library: "sentinel-native-asm",
-            responsibility: "Linked timing primitives, weighted pressure mixing, kinetic-impedance aware fast-path scoring, bounded evidence-ladder sizing, health-aware zen fallback decisions, and defensive lane rebalance guidance.",
-            entrypoint: "fast_path_assess / asm_defense_directive / sentinel_asm_weighted_mix / sentinel_asm_weighted_mix4 / sentinel_asm_pressure_mode / sentinel_asm_observation_window / sentinel_asm_decoy_budget / sentinel_asm_evidence_budget / sentinel_asm_phantom_jitter / sentinel_asm_guard_bias",
+            responsibility: "Linked timing primitives, weighted pressure mixing, kinetic-impedance aware fast-path scoring, bounded evidence-ladder sizing, health-aware zen fallback decisions, guardian-mode selection, mesh gossip TTL sizing, and defensive lane rebalance guidance.",
+            entrypoint: "fast_path_assess / asm_defense_directive / sentinel_asm_weighted_mix / sentinel_asm_weighted_mix4 / sentinel_asm_pressure_mode / sentinel_asm_observation_window / sentinel_asm_decoy_budget / sentinel_asm_evidence_budget / sentinel_asm_phantom_jitter / sentinel_asm_guard_bias / sentinel_asm_guardian_mode / sentinel_asm_mesh_gossip_ttl",
             status: NativeLayerStatus::Linked,
         },
     ]
@@ -156,6 +156,64 @@ pub struct AsmDefenseDirective {
     pub keep_decoy_capture: bool,
     pub recovery_bias: bool,
     pub resume_standby_after_ms: u16,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuardianBridgeMode {
+    LocalObserve,
+    AdoptFragilePeer,
+    SharedGuardian,
+    ShadowGateway,
+}
+
+impl GuardianBridgeMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalObserve => "local-observe",
+            Self::AdoptFragilePeer => "adopt-fragile-peer",
+            Self::SharedGuardian => "shared-guardian",
+            Self::ShadowGateway => "shadow-gateway",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GuardianBridgeDirective {
+    pub mode: GuardianBridgeMode,
+    pub adoption_budget: u8,
+    pub clean_forward_only: bool,
+    pub handoff_ready: bool,
+    pub preserve_fragile_paths: bool,
+    pub surrogate_load_pct: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MeshGossipMode {
+    Quiet,
+    ShareObservation,
+    TightenTrust,
+    ShadowGateway,
+}
+
+impl MeshGossipMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Quiet => "quiet",
+            Self::ShareObservation => "share-observation",
+            Self::TightenTrust => "tighten-trust",
+            Self::ShadowGateway => "shadow-gateway",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MeshGossipDirective {
+    pub mode: MeshGossipMode,
+    pub share_hostile_observation: bool,
+    pub tighten_trust: bool,
+    pub open_shadow_gateway: bool,
+    pub consensus_quorum: u8,
+    pub evidence_ttl_ms: u16,
 }
 
 pub fn fast_path_assess(features: FastPathFeatures) -> FastPathDecision {
@@ -282,6 +340,133 @@ pub fn asm_defense_directive(
         FastThreatKind::Intrusion => intrusion_directive(decision, resource_pressure),
         FastThreatKind::IntegrityPressure => integrity_directive(decision, resource_pressure),
         FastThreatKind::DdosPressure => ddos_directive(decision, resource_pressure),
+    }
+}
+
+pub fn guardian_bridge_directive(
+    health: FastPathHealthProfile,
+    protected_nodes: u16,
+    gentle_nodes: u16,
+    mesh_enabled: bool,
+    peer_distress: bool,
+) -> GuardianBridgeDirective {
+    if !mesh_enabled {
+        return GuardianBridgeDirective {
+            mode: GuardianBridgeMode::LocalObserve,
+            adoption_budget: 0,
+            clean_forward_only: true,
+            handoff_ready: false,
+            preserve_fragile_paths: false,
+            surrogate_load_pct: 0,
+        };
+    }
+
+    let stressed_host = health.passive_only
+        || health.cpu_load_pct >= 88
+        || health.memory_load_pct >= 88
+        || health.thermal_c >= 84;
+
+    if peer_distress || stressed_host {
+        return GuardianBridgeDirective {
+            mode: GuardianBridgeMode::ShadowGateway,
+            adoption_budget: 0,
+            clean_forward_only: true,
+            handoff_ready: true,
+            preserve_fragile_paths: true,
+            surrogate_load_pct: 72,
+        };
+    }
+
+    if protected_nodes > 0 || gentle_nodes > 0 {
+        return GuardianBridgeDirective {
+            mode: GuardianBridgeMode::AdoptFragilePeer,
+            adoption_budget: if protected_nodes >= 2 { 3 } else { 2 },
+            clean_forward_only: true,
+            handoff_ready: true,
+            preserve_fragile_paths: true,
+            surrogate_load_pct: 60,
+        };
+    }
+
+    GuardianBridgeDirective {
+        mode: GuardianBridgeMode::SharedGuardian,
+        adoption_budget: 1,
+        clean_forward_only: true,
+        handoff_ready: true,
+        preserve_fragile_paths: false,
+        surrogate_load_pct: 50,
+    }
+}
+
+pub fn mesh_gossip_directive(
+    confidence: u8,
+    mesh_enabled: bool,
+    integrity_event: bool,
+    mesh_pressure: bool,
+    shadow_gateway: bool,
+) -> MeshGossipDirective {
+    if !mesh_enabled {
+        return MeshGossipDirective {
+            mode: MeshGossipMode::Quiet,
+            share_hostile_observation: false,
+            tighten_trust: false,
+            open_shadow_gateway: false,
+            consensus_quorum: 0,
+            evidence_ttl_ms: 0,
+        };
+    }
+
+    if shadow_gateway {
+        return MeshGossipDirective {
+            mode: MeshGossipMode::ShadowGateway,
+            share_hostile_observation: true,
+            tighten_trust: true,
+            open_shadow_gateway: true,
+            consensus_quorum: 2,
+            evidence_ttl_ms: 120,
+        };
+    }
+
+    if integrity_event {
+        return MeshGossipDirective {
+            mode: MeshGossipMode::TightenTrust,
+            share_hostile_observation: true,
+            tighten_trust: true,
+            open_shadow_gateway: false,
+            consensus_quorum: 2,
+            evidence_ttl_ms: 140,
+        };
+    }
+
+    if mesh_pressure {
+        return MeshGossipDirective {
+            mode: MeshGossipMode::TightenTrust,
+            share_hostile_observation: true,
+            tighten_trust: true,
+            open_shadow_gateway: false,
+            consensus_quorum: 2,
+            evidence_ttl_ms: 160,
+        };
+    }
+
+    if confidence >= 80 {
+        return MeshGossipDirective {
+            mode: MeshGossipMode::ShareObservation,
+            share_hostile_observation: true,
+            tighten_trust: false,
+            open_shadow_gateway: false,
+            consensus_quorum: if confidence >= 90 { 2 } else { 3 },
+            evidence_ttl_ms: if confidence >= 90 { 220 } else { 180 },
+        };
+    }
+
+    MeshGossipDirective {
+        mode: MeshGossipMode::Quiet,
+        share_hostile_observation: false,
+        tighten_trust: false,
+        open_shadow_gateway: false,
+        consensus_quorum: 0,
+        evidence_ttl_ms: 0,
     }
 }
 
@@ -479,8 +664,9 @@ fn weighted_score4(a: u8, b: u8, c: u8, d: u8, wa: u8, wb: u8, wc: u8, wd: u8) -
 #[cfg(test)]
 mod tests {
     use super::{
-        asm_defense_directive, fast_path_assess, native_layer_manifest, AsmDefenseMode,
-        FastPathFeatures, FastPathHealthProfile, FastThreatKind,
+        asm_defense_directive, fast_path_assess, guardian_bridge_directive,
+        mesh_gossip_directive, native_layer_manifest, AsmDefenseMode, FastPathFeatures,
+        FastPathHealthProfile, FastThreatKind, GuardianBridgeMode, MeshGossipMode,
     };
 
     #[test]
@@ -599,5 +785,52 @@ mod tests {
         assert_eq!(directive.mode, AsmDefenseMode::ContainmentGuard);
         assert_eq!(directive.decoy_budget, 0);
         assert!(directive.guard_bias_pct >= 80);
+    }
+
+    #[test]
+    fn guardian_bridge_adopts_fragile_peers_on_calm_mesh() {
+        let directive = guardian_bridge_directive(
+            FastPathHealthProfile::default(),
+            1,
+            1,
+            true,
+            false,
+        );
+
+        assert_eq!(directive.mode, GuardianBridgeMode::AdoptFragilePeer);
+        assert!(directive.handoff_ready);
+        assert!(directive.preserve_fragile_paths);
+        assert!(directive.adoption_budget >= 2);
+    }
+
+    #[test]
+    fn guardian_bridge_shifts_to_shadow_gateway_under_pressure() {
+        let directive = guardian_bridge_directive(
+            FastPathHealthProfile {
+                cpu_load_pct: 92,
+                memory_load_pct: 70,
+                thermal_c: 80,
+                passive_only: false,
+            },
+            1,
+            0,
+            true,
+            true,
+        );
+
+        assert_eq!(directive.mode, GuardianBridgeMode::ShadowGateway);
+        assert_eq!(directive.adoption_budget, 0);
+        assert!(directive.handoff_ready);
+    }
+
+    #[test]
+    fn mesh_gossip_opens_shadow_gateway_on_integrity_pressure() {
+        let directive = mesh_gossip_directive(96, true, true, true, true);
+
+        assert_eq!(directive.mode, MeshGossipMode::ShadowGateway);
+        assert!(directive.share_hostile_observation);
+        assert!(directive.tighten_trust);
+        assert_eq!(directive.consensus_quorum, 2);
+        assert_eq!(directive.evidence_ttl_ms, 120);
     }
 }

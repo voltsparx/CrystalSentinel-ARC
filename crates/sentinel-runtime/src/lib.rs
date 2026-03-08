@@ -9,8 +9,9 @@ use sentinel_education::find_lesson;
 use sentinel_forensics::InvestigationRecord;
 use sentinel_integrity::{IntegrityAssessment, IntegrityEngine, IntegrityVerdict};
 use sentinel_native_bridge::{
-    asm_defense_directive, AsmDefenseDirective, AsmDefenseMode, FastPathDecision,
-    FastPathHealthProfile, FastThreatKind,
+    asm_defense_directive, guardian_bridge_directive, mesh_gossip_directive,
+    AsmDefenseDirective, AsmDefenseMode, FastPathDecision, FastPathHealthProfile,
+    FastThreatKind, GuardianBridgeDirective, GuardianBridgeMode, MeshGossipDirective,
 };
 use sentinel_policy::PolicyEngine;
 use sentinel_response::{ResponseAction, ResponsePlan, ResponsePlanner};
@@ -160,6 +161,8 @@ pub struct RuntimeDecision {
     pub awareness: SituationAwareness,
     pub fast_path: FastPathDecision,
     pub asm_directive: AsmDefenseDirective,
+    pub guardian_bridge: GuardianBridgeDirective,
+    pub mesh_gossip: MeshGossipDirective,
     pub autonomy_plan: AutonomyPlan,
     pub decoy_plan: Option<DecoyPlan>,
     pub integrity_assessment: Option<IntegrityAssessment>,
@@ -194,6 +197,27 @@ impl SentinelRuntime {
         );
         let mut assessment = self.policy.assess(signal, health.clone());
         let autonomy_plan = plan_autonomy(config, &assessment.signal, &health, asm_directive);
+        let protected_nodes = estimate_protected_nodes(config, &awareness, &assessment);
+        let gentle_nodes = estimate_gentle_nodes(config, &awareness);
+        let guardian_bridge = guardian_bridge_directive(
+            FastPathHealthProfile {
+                cpu_load_pct: health.cpu_load_pct,
+                memory_load_pct: health.memory_load_pct,
+                thermal_c: health.thermal_c,
+                passive_only: health.passive_only,
+            },
+            protected_nodes,
+            gentle_nodes,
+            autonomy_plan.allow_guardian_handoff,
+            is_mesh_peer_integrity_event(&assessment),
+        );
+        let mesh_gossip = mesh_gossip_directive(
+            assessment.signal.confidence,
+            autonomy_plan.allow_mesh_distribution,
+            is_mesh_peer_integrity_event(&assessment),
+            is_mesh_shareworthy_event(&assessment),
+            matches!(guardian_bridge.mode, GuardianBridgeMode::ShadowGateway),
+        );
         append_rationale(
             &mut assessment,
             &format!(
@@ -207,6 +231,18 @@ impl SentinelRuntime {
                 fast_path.dominance_margin,
                 asm_directive.guard_bias_pct,
                 asm_directive.evidence_budget
+            ),
+        );
+        append_rationale(
+            &mut assessment,
+            &format!(
+                "guardian_mode={} adoption_budget={} handoff_ready={} mesh_gossip={} mesh_ttl_ms={} mesh_quorum={}",
+                guardian_bridge.mode.as_str(),
+                guardian_bridge.adoption_budget,
+                guardian_bridge.handoff_ready,
+                mesh_gossip.mode.as_str(),
+                mesh_gossip.evidence_ttl_ms,
+                mesh_gossip.consensus_quorum
             ),
         );
 
@@ -238,6 +274,8 @@ impl SentinelRuntime {
             posture,
             &awareness,
             asm_directive,
+            &guardian_bridge,
+            &mesh_gossip,
             &autonomy_plan,
             decoy_plan.as_ref(),
             integrity_assessment.as_ref(),
@@ -251,6 +289,8 @@ impl SentinelRuntime {
             awareness,
             fast_path,
             asm_directive,
+            guardian_bridge,
+            mesh_gossip,
             autonomy_plan,
             decoy_plan,
             integrity_assessment,
@@ -328,6 +368,39 @@ fn derive_saturation(fast_path: FastPathDecision, health: &HealthSnapshot) -> Sa
     } else {
         SaturationLevel::Nominal
     }
+}
+
+fn estimate_protected_nodes(
+    config: &RuntimeConfig,
+    awareness: &SituationAwareness,
+    assessment: &ThreatAssessment,
+) -> u16 {
+    let mut protected_nodes = 0u16;
+
+    if !matches!(awareness.fragility, FragilityLevel::Stable) {
+        protected_nodes += 1;
+    }
+    if matches!(config.deployment_shape, sentinel_config::DeploymentShape::FragileMesh) {
+        protected_nodes += 1;
+    }
+    if is_wireless_management_event(assessment) {
+        protected_nodes += 1;
+    }
+
+    protected_nodes
+}
+
+fn estimate_gentle_nodes(config: &RuntimeConfig, awareness: &SituationAwareness) -> u16 {
+    let mut gentle_nodes = 0u16;
+
+    if matches!(awareness.fragility, FragilityLevel::Sensitive | FragilityLevel::Critical) {
+        gentle_nodes += 1;
+    }
+    if matches!(config.deployment_shape, sentinel_config::DeploymentShape::FragileMesh) {
+        gentle_nodes += 1;
+    }
+
+    gentle_nodes
 }
 
 fn apply_runtime_bounds(
@@ -470,6 +543,8 @@ fn adapt_plan(
     posture: RuntimePosture,
     awareness: &SituationAwareness,
     asm_directive: AsmDefenseDirective,
+    guardian_bridge: &GuardianBridgeDirective,
+    mesh_gossip: &MeshGossipDirective,
     autonomy_plan: &AutonomyPlan,
     decoy_plan: Option<&DecoyPlan>,
     integrity_assessment: Option<&IntegrityAssessment>,
@@ -487,10 +562,29 @@ fn adapt_plan(
     if matches!(autonomy_plan.pattern, ArchitecturePattern::FragileMeshGuard) {
         push_unique(&mut plan.actions, ResponseAction::ProtectFragileAssets);
     }
+    if autonomy_plan.allow_guardian_handoff
+        && !matches!(guardian_bridge.mode, GuardianBridgeMode::LocalObserve)
+    {
+        push_unique(&mut plan.actions, ResponseAction::EnableGuardianHandoff);
+    }
+    if matches!(guardian_bridge.mode, GuardianBridgeMode::AdoptFragilePeer) {
+        push_unique(&mut plan.actions, ResponseAction::AdoptFragilePeer);
+        push_unique(&mut plan.actions, ResponseAction::ProtectFragileAssets);
+        push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+    }
+    if matches!(guardian_bridge.mode, GuardianBridgeMode::ShadowGateway) {
+        push_unique(&mut plan.actions, ResponseAction::EnterShadowGatewayMode);
+        push_unique(&mut plan.actions, ResponseAction::ShiftGuardianCoverage);
+        push_unique(&mut plan.actions, ResponseAction::ProtectFragileAssets);
+        push_unique(&mut plan.actions, ResponseAction::PreserveServiceContinuity);
+    }
     if autonomy_plan.allow_mesh_distribution && is_mesh_peer_integrity_event(assessment) {
         push_unique(&mut plan.actions, ResponseAction::BroadcastMeshAlert);
         push_unique(&mut plan.actions, ResponseAction::ShiftGuardianCoverage);
         push_unique(&mut plan.actions, ResponseAction::SuspendPeerTrust);
+    }
+    if mesh_gossip.share_hostile_observation {
+        push_unique(&mut plan.actions, ResponseAction::ShareMeshIntel);
     }
     if is_wireless_management_event(assessment) {
         push_unique(
@@ -692,6 +786,27 @@ fn adapt_plan(
         plan.narrative = format!(
             "{} mesh=peer-heartbeat-guard trust=suspended coverage=shifted",
             plan.narrative
+        );
+    }
+    if autonomy_plan.allow_guardian_handoff
+        && !matches!(guardian_bridge.mode, GuardianBridgeMode::LocalObserve)
+    {
+        plan.narrative = format!(
+            "{} guardian={} adoption_budget={} clean_forward_only={} surrogate_load_pct={}",
+            plan.narrative,
+            guardian_bridge.mode.as_str(),
+            guardian_bridge.adoption_budget,
+            guardian_bridge.clean_forward_only,
+            guardian_bridge.surrogate_load_pct
+        );
+    }
+    if mesh_gossip.share_hostile_observation {
+        plan.narrative = format!(
+            "{} mesh_gossip={} quorum={} ttl_ms={}",
+            plan.narrative,
+            mesh_gossip.mode.as_str(),
+            mesh_gossip.consensus_quorum,
+            mesh_gossip.evidence_ttl_ms
         );
     }
     if is_wireless_management_event(assessment) {

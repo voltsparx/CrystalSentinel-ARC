@@ -73,6 +73,10 @@ pub struct AutonomyPlan {
     pub phantom_sample_cap: u8,
     pub allow_spot_mimicry: bool,
     pub allow_mesh_distribution: bool,
+    pub allow_guardian_handoff: bool,
+    pub guardian_adoption_budget: u8,
+    pub mesh_gossip_ttl_ms: u16,
+    pub mesh_consensus_quorum: u8,
     pub native_work_split: NativeWorkSplit,
     pub narrative: String,
 }
@@ -111,6 +115,10 @@ pub fn plan_autonomy(
             phantom_sample_cap: 4,
             allow_spot_mimicry: true,
             allow_mesh_distribution: false,
+            allow_guardian_handoff: false,
+            guardian_adoption_budget: 0,
+            mesh_gossip_ttl_ms: 0,
+            mesh_consensus_quorum: 0,
             native_work_split: NativeWorkSplit {
                 rust_control_pct: 40,
                 c_guard_pct: 20,
@@ -134,6 +142,10 @@ pub fn plan_autonomy(
             phantom_sample_cap: 5,
             allow_spot_mimicry: true,
             allow_mesh_distribution: true,
+            allow_guardian_handoff: true,
+            guardian_adoption_budget: 3,
+            mesh_gossip_ttl_ms: 180,
+            mesh_consensus_quorum: 2,
             native_work_split: NativeWorkSplit {
                 rust_control_pct: 35,
                 c_guard_pct: 20,
@@ -157,6 +169,10 @@ pub fn plan_autonomy(
             phantom_sample_cap: 2,
             allow_spot_mimicry: false,
             allow_mesh_distribution: false,
+            allow_guardian_handoff: true,
+            guardian_adoption_budget: 2,
+            mesh_gossip_ttl_ms: 140,
+            mesh_consensus_quorum: 2,
             native_work_split: NativeWorkSplit {
                 rust_control_pct: 45,
                 c_guard_pct: 25,
@@ -183,6 +199,32 @@ pub fn plan_autonomy(
                 config.deployment_shape,
                 DeploymentShape::MultiNodeMesh
             ),
+            allow_guardian_handoff: matches!(
+                config.deployment_shape,
+                DeploymentShape::MultiNodeMesh | DeploymentShape::FragileMesh
+            ),
+            guardian_adoption_budget: if matches!(
+                config.deployment_shape,
+                DeploymentShape::MultiNodeMesh | DeploymentShape::FragileMesh
+            ) {
+                2
+            } else {
+                0
+            },
+            mesh_gossip_ttl_ms: if matches!(config.deployment_shape, DeploymentShape::MultiNodeMesh)
+            {
+                160
+            } else {
+                0
+            },
+            mesh_consensus_quorum: if matches!(
+                config.deployment_shape,
+                DeploymentShape::MultiNodeMesh
+            ) {
+                2
+            } else {
+                0
+            },
             native_work_split: NativeWorkSplit {
                 rust_control_pct: 25,
                 c_guard_pct: 20,
@@ -200,6 +242,7 @@ pub fn plan_autonomy(
             plan.phantom_sample_cap = plan.phantom_sample_cap.min(3);
             plan.packet_lanes = plan.packet_lanes.min(2);
             plan.classifier_lanes = plan.classifier_lanes.min(2);
+            plan.guardian_adoption_budget = plan.guardian_adoption_budget.min(2);
         }
         PerformanceProfile::Balanced => {}
         PerformanceProfile::PressureShield => {
@@ -215,6 +258,10 @@ pub fn plan_autonomy(
                 cpp_classifier_pct: 15,
                 asm_fast_path_pct: 40,
             };
+            if plan.allow_mesh_distribution {
+                plan.mesh_gossip_ttl_ms = plan.mesh_gossip_ttl_ms.max(160);
+                plan.mesh_consensus_quorum = plan.mesh_consensus_quorum.max(2);
+            }
         }
     }
 
@@ -228,6 +275,10 @@ pub fn plan_autonomy(
         plan.max_decoy_slots = plan.max_decoy_slots.min(2);
         plan.phantom_sample_cap = plan.phantom_sample_cap.min(2);
         plan.allow_spot_mimicry = false;
+        plan.guardian_adoption_budget = plan.guardian_adoption_budget.min(1);
+        if plan.mesh_gossip_ttl_ms > 0 {
+            plan.mesh_gossip_ttl_ms = plan.mesh_gossip_ttl_ms.min(140);
+        }
     }
 
     if matches!(
@@ -258,6 +309,10 @@ pub fn plan_autonomy(
                 asm_fast_path_pct: 35,
             };
         }
+        if plan.allow_mesh_distribution {
+            plan.mesh_gossip_ttl_ms = plan.mesh_gossip_ttl_ms.max(160);
+            plan.mesh_consensus_quorum = plan.mesh_consensus_quorum.max(2);
+        }
         if matches!(asm_directive.mode, AsmDefenseMode::DecoyCapture) {
             plan.phantom_sample_cap = plan
                 .phantom_sample_cap
@@ -282,6 +337,16 @@ pub fn plan_autonomy(
         plan.phantom_sample_cap = 0;
         plan.allow_spot_mimicry = false;
         plan.allow_mesh_distribution = false;
+        plan.allow_guardian_handoff =
+            !matches!(config.deployment_shape, DeploymentShape::SingleNode);
+        plan.guardian_adoption_budget = 0;
+        if plan.allow_guardian_handoff {
+            plan.mesh_gossip_ttl_ms = 120;
+            plan.mesh_consensus_quorum = 2;
+        } else {
+            plan.mesh_gossip_ttl_ms = 0;
+            plan.mesh_consensus_quorum = 0;
+        }
         plan.native_work_split = NativeWorkSplit {
             rust_control_pct: 45,
             c_guard_pct: 25,
@@ -293,10 +358,11 @@ pub fn plan_autonomy(
     if matches!(config.autonomy_mode, AutonomyMode::Assisted) {
         plan.fault_isolation = escalate_fault_isolation(plan.fault_isolation);
         plan.stability_headroom_pct = plan.stability_headroom_pct.max(40);
+        plan.mesh_consensus_quorum = plan.mesh_consensus_quorum.max(2);
     }
 
     plan.narrative = format!(
-        "pattern={} autonomy={} deployment={} performance={} fault_isolation={} lanes=packet:{} classifier:{} correlation:{} reporter:{} headroom_pct={} decoy_cap={} phantom_sample_cap={} mesh_distribution={} work_split=rust:{} c:{} cpp:{} asm:{}",
+        "pattern={} autonomy={} deployment={} performance={} fault_isolation={} lanes=packet:{} classifier:{} correlation:{} reporter:{} headroom_pct={} decoy_cap={} phantom_sample_cap={} mesh_distribution={} guardian_handoff={} adoption_budget={} mesh_ttl_ms={} mesh_quorum={} work_split=rust:{} c:{} cpp:{} asm:{}",
         plan.pattern.as_str(),
         plan.autonomy_mode.as_str(),
         plan.deployment_shape.as_str(),
@@ -310,6 +376,10 @@ pub fn plan_autonomy(
         plan.max_decoy_slots,
         plan.phantom_sample_cap,
         plan.allow_mesh_distribution,
+        plan.allow_guardian_handoff,
+        plan.guardian_adoption_budget,
+        plan.mesh_gossip_ttl_ms,
+        plan.mesh_consensus_quorum,
         plan.native_work_split.rust_control_pct,
         plan.native_work_split.c_guard_pct,
         plan.native_work_split.cpp_classifier_pct,
@@ -384,6 +454,8 @@ mod tests {
         assert!(!plan.allow_spot_mimicry);
         assert!(plan.stability_headroom_pct >= 45);
         assert_eq!(plan.fault_isolation, FaultIsolationLevel::Maximum);
+        assert!(plan.allow_guardian_handoff);
+        assert!(plan.guardian_adoption_budget <= 2);
         assert_eq!(plan.native_work_split.total(), 100);
     }
 
@@ -412,5 +484,33 @@ mod tests {
         assert!(plan.packet_lanes >= 4);
         assert!(plan.native_work_split.asm_fast_path_pct >= 40);
         assert_eq!(plan.native_work_split.total(), 100);
+    }
+
+    #[test]
+    fn balanced_mesh_enables_guardian_handoff_and_mesh_gossip() {
+        let config = RuntimeConfig {
+            autonomy_mode: AutonomyMode::GuardianAutonomous,
+            deployment_shape: DeploymentShape::MultiNodeMesh,
+            performance_profile: PerformanceProfile::Balanced,
+            ..RuntimeConfig::default()
+        };
+        let plan = plan_autonomy(
+            &config,
+            &signal(AttackFamily::OffensiveScan),
+            &HealthSnapshot::default(),
+            asm_defense_directive(
+                fast_path_assess(FastPathFeatures {
+                    scan_pressure: 78,
+                    ..FastPathFeatures::default()
+                }),
+                FastPathHealthProfile::default(),
+            ),
+        );
+
+        assert!(plan.allow_mesh_distribution);
+        assert!(plan.allow_guardian_handoff);
+        assert!(plan.guardian_adoption_budget >= 1);
+        assert!(plan.mesh_gossip_ttl_ms >= 160);
+        assert!(plan.mesh_consensus_quorum >= 2);
     }
 }
