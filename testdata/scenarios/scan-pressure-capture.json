@@ -1,0 +1,35 @@
+{
+  "scenario": {
+    "name": "scan-pressure-capture",
+    "protected_asset": "edge-service",
+    "summary": "Validate decoy-first capture against a high-speed asynchronous scan.",
+    "success_criteria": "Trigger bounded IDF and Phantom observation while preserving stability-first containment."
+  },
+  "events": [
+    {
+      "kind": "packet",
+      "source": "203.0.113.88",
+      "summary": "masscan async_scan stateless_syn wide_port_sweep pps_scan",
+      "health": {
+        "cpu_load_pct": 29,
+        "memory_load_pct": 24,
+        "thermal_c": 49,
+        "passive_only": false
+      }
+    }
+  ],
+  "expectations": {
+    "incident_count": 1,
+    "highest_stage": "contain",
+    "families": [
+      "offensive-scan"
+    ],
+    "operator_report_contains": [
+      "offensive-scan",
+      "high_speed_scan"
+    ],
+    "human_report_contains": [
+      "Phantom-Scan stayed active"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-; CrystalSentinel-CRA ASM directive helpers
+; CrystalSentinel-ARC ASM directive helpers
 ; mode values:
 ; 0 = standby
 ; 1 = decoy-capture

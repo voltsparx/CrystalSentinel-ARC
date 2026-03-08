@@ -1,4 +1,4 @@
-; CrystalSentinel-CRA ASM weighted pressure mixer
+; CrystalSentinel-ARC ASM weighted pressure mixer
 
 global sentinel_asm_weighted_mix
 

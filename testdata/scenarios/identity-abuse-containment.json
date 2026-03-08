@@ -1,0 +1,34 @@
+{
+  "scenario": {
+    "name": "identity-abuse-containment",
+    "protected_asset": "auth-api",
+    "summary": "Contain impossible-travel or token abuse without blocking valid users.",
+    "success_criteria": "Move to bounded containment while preserving a human-readable explanation."
+  },
+  "events": [
+    {
+      "kind": "identity",
+      "source": "198.51.100.91",
+      "summary": "password_guessing ssh.login.failure ssh_auth_failed",
+      "health": {
+        "cpu_load_pct": 38,
+        "memory_load_pct": 31,
+        "thermal_c": 54,
+        "passive_only": false
+      }
+    }
+  ],
+  "expectations": {
+    "incident_count": 1,
+    "highest_stage": "contain",
+    "families": [
+      "identity-abuse"
+    ],
+    "operator_report_contains": [
+      "identity-abuse"
+    ],
+    "care_report_contains": [
+      "bounded containment"
+    ]
+  }
+}

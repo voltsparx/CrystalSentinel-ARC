@@ -1,5 +1,5 @@
 [Unit]
-Description=CrystalSentinel-CRA Runtime
+Description=CrystalSentinel-ARC Runtime
 After=network-online.target
 Wants=network-online.target
 
@@ -8,7 +8,7 @@ Type=simple
 ExecStart=/usr/local/bin/sentineld
 Restart=on-failure
 RestartSec=5
-WorkingDirectory=/usr/local/var/lib/crystalsentinel
+WorkingDirectory=/usr/local/var/lib/crystalsentinel-arc
 StandardOutput=journal
 StandardError=journal
 

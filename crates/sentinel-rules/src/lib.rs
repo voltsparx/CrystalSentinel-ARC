@@ -314,7 +314,7 @@ pub fn load_rule_pack(repo_root: &Path, profile: Option<&str>) -> Result<RulePac
 pub fn compile_rule_pack(repo_root: &Path, profile: Option<&str>) -> Result<String, String> {
     let pack = load_rule_pack(repo_root, profile)?;
     let mut lines = vec![
-        "# CrystalSentinel-CRA compiled rule pack".to_string(),
+        "# CrystalSentinel-ARC compiled rule pack".to_string(),
         format!("profile = {}", pack.profile),
         format!("manifest = {}", pack.manifest_path.display()),
         format!("state_file = {}", pack.state_file.display()),

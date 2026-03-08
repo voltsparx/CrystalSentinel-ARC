@@ -48,7 +48,7 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
             name: "KIS",
             classification: "timing-intelligence",
             harmless: true,
-            summary: "KIS measures timing friction and pressure so CrystalSentinel-CRA can understand how hard a connection or attacker is pushing against the environment.",
+            summary: "KIS measures timing friction and pressure so CrystalSentinel-ARC can understand how hard a connection or attacker is pushing against the environment.",
             how_it_works: &[
                 "It studies packet pacing, variance, and behavioral friction.",
                 "It helps estimate pressure on the path, device, or service under observation.",
@@ -115,7 +115,7 @@ pub fn learning_catalog() -> Vec<ScanTypeLesson> {
             how_it_works: &[
                 "It tracks the baseline feel of the network and the devices behind it.",
                 "It watches for resonance spikes, drag, or sudden ambient pressure changes.",
-                "It helps CrystalSentinel-CRA tell when something is throttling or squeezing the network even before the cause is fully classified.",
+                "It helps CrystalSentinel-ARC tell when something is throttling or squeezing the network even before the cause is fully classified.",
             ],
             safety_contract: &[
                 "SARS is a monitor, not an intervention engine.",

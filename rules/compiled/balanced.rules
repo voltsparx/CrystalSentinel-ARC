@@ -1,4 +1,4 @@
-# CrystalSentinel-CRA compiled rule pack
+# CrystalSentinel-ARC compiled rule pack
 profile = balanced
 manifest = C:\Users\volts\OneDrive\Documents\GitHub\DeepShield\rules\manifest.toml
 state_file = C:\Users\volts\OneDrive\Documents\GitHub\DeepShield\rules\states\balanced.states

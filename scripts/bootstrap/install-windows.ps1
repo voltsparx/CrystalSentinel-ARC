@@ -1,15 +1,15 @@
 $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$programFilesRoot = if ($env:CRYSTALSENTINEL_PROGRAMFILES) {
-    $env:CRYSTALSENTINEL_PROGRAMFILES
+$programFilesRoot = if ($env:CRYSTALSENTINEL_ARC_PROGRAMFILES) {
+    $env:CRYSTALSENTINEL_ARC_PROGRAMFILES
 } else {
-    Join-Path $env:ProgramFiles "CrystalSentinel-CRA"
+    Join-Path $env:ProgramFiles "CrystalSentinel-ARC"
 }
-$programDataRoot = if ($env:CRYSTALSENTINEL_PROGRAMDATA) {
-    $env:CRYSTALSENTINEL_PROGRAMDATA
+$programDataRoot = if ($env:CRYSTALSENTINEL_ARC_PROGRAMDATA) {
+    $env:CRYSTALSENTINEL_ARC_PROGRAMDATA
 } else {
-    Join-Path $env:ProgramData "CrystalSentinel-CRA"
+    Join-Path $env:ProgramData "CrystalSentinel-ARC"
 }
 
 $binRoot = Join-Path $programFilesRoot "bin"
@@ -20,7 +20,7 @@ $logRoot = Join-Path $programDataRoot "logs"
 $stateRoot = Join-Path $programDataRoot "state"
 $runRoot = Join-Path $programDataRoot "run"
 
-Write-Host "Installing CrystalSentinel-CRA layout for Windows"
+Write-Host "Installing CrystalSentinel-ARC layout for Windows"
 Write-Host "  program files: $programFilesRoot"
 Write-Host "  program data:  $programDataRoot"
 Write-Host "  rules root:    $rulesRoot"

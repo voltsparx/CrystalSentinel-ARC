@@ -373,7 +373,7 @@ fn human_summary_for(
         .unwrap_or_default();
 
     format!(
-        "Source {source} showed behavior consistent with {families}. CrystalSentinel-CRA interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{fusion_line}{architecture_line}{phantom_line}{recovery_line}",
+        "Source {source} showed behavior consistent with {families}. CrystalSentinel-ARC interpreted it with the {posture} posture and ended at the {stage} response stage, preserving evidence for investigation and later review.{recognition_line}{stability_line}{fusion_line}{architecture_line}{phantom_line}{recovery_line}",
         stage = stage.as_str()
     )
 }

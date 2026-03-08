@@ -1,6 +1,6 @@
-# CrystalSentinel-CRA
+# CrystalSentinel-ARC
 
-CrystalSentinel-CRA is a research-driven defensive architecture and prototype
+CrystalSentinel-ARC is a research-driven defensive architecture and prototype
 direction focused on real-time detection, prevention, containment,
 investigation, and explanation of hostile activity across modern networks and
 endpoints.
@@ -30,7 +30,7 @@ the system should explain its decision to operators and researchers.
 
 ## Positioning
 
-CrystalSentinel-CRA is a real-time autonomous defensive system. In this
+CrystalSentinel-ARC is a real-time autonomous defensive system. In this
 project, "neutralize" means defensive containment, not retaliation.
 
 It is designed to close the gap between:
@@ -51,7 +51,7 @@ Allowed containment actions:
 
 ## What Makes It Different
 
-CrystalSentinel-CRA is designed around behavior-driven defense rather than only
+CrystalSentinel-ARC is designed around behavior-driven defense rather than only
 rule-triggered blocking. Its intended design points are:
 
 - new defensive scan concepts such as TBNS, Phantom-Scan, KIS, SARS, IDF Scan, and Callback-Ping research
@@ -65,7 +65,7 @@ rule-triggered blocking. Its intended design points are:
 
 ## Decoy-First Capture Loop
 
-One of the core ideas in the CrystalSentinel-CRA design is the decoy-first information
+One of the core ideas in the CrystalSentinel-ARC design is the decoy-first information
 collection method.
 
 Instead of waiting for a threat to fully arrive before reacting, the platform
@@ -89,7 +89,7 @@ improve early containment.
 
 ## Defensive Nervous System
 
-CrystalSentinel-CRA treats the defense stack as a layered nervous-system model rather
+CrystalSentinel-ARC treats the defense stack as a layered nervous-system model rather
 than a single detector.
 
 - Rust is intended to be the executive layer that applies policy, explanation,
@@ -127,7 +127,7 @@ keep the protector stable under heavy pressure.
 
 ## Runtime Architecture Patterns
 
-CrystalSentinel-CRA now carries a runtime architecture planner so the
+CrystalSentinel-ARC now carries a runtime architecture planner so the
 protector can stay autonomous without becoming unstable or wasteful.
 
 - `edge-guardian`: balanced single-node protection for normal deployment
@@ -145,7 +145,7 @@ These patterns do not just rename modes. They change:
 
 ## Situation Awareness and Bio-Response
 
-CrystalSentinel-CRA is designed to remain aware of both the threat and the
+CrystalSentinel-ARC is designed to remain aware of both the threat and the
 condition of the environment it is defending.
 
 - Situation-Aware intelligence tracks attack state, asset criticality, device
@@ -201,7 +201,7 @@ The protective rule is simple:
 ## Core Problem Statement
 
 Traditional security tools often force a tradeoff between speed, safety, and
-clarity. CrystalSentinel-CRA aims to close that gap by combining:
+clarity. CrystalSentinel-ARC aims to close that gap by combining:
 
 - early observation
 - decoy-first information collection
@@ -249,13 +249,13 @@ concrete engineering meaning.
 
 ## Install and Rule Layout
 
-CrystalSentinel-CRA now follows a prefix-based install layout so the runtime,
+CrystalSentinel-ARC now follows a prefix-based install layout so the runtime,
 config, and rules can be staged consistently across Linux, macOS, and Windows.
 
-- Linux and macOS use `${prefix}/etc/crystalsentinel` for config and
-  `${prefix}/etc/crystalsentinel/rules` for rule content.
-- Windows uses `%ProgramData%\\CrystalSentinel-CRA\\etc` for config and
-  `%ProgramData%\\CrystalSentinel-CRA\\etc\\rules` for rule content.
+- Linux and macOS use `${prefix}/etc/crystalsentinel-arc` for config and
+  `${prefix}/etc/crystalsentinel-arc/rules` for rule content.
+- Windows uses `%ProgramData%\\CrystalSentinel-ARC\\etc` for config and
+  `%ProgramData%\\CrystalSentinel-ARC\\etc\\rules` for rule content.
 - Platform installers live under `scripts/bootstrap/`.
 - Service templates live under `deploy/systemd/`, `deploy/launchd/`, and
   `deploy/windows-service/`.
@@ -270,7 +270,7 @@ organized for:
 - fragile-device baselines
 - stability-first response policy
 
-The rule language is intentionally small. CrystalSentinel-CRA uses readable
+The rule language is intentionally small. CrystalSentinel-ARC uses readable
 TOML rule files plus local profile state files instead of a large external
 rule scripting language. The goal is to keep authoring, review, deployment,
 and incident response simpler without weakening defensive control.
@@ -375,6 +375,26 @@ Operator Guidance:
 Research Value:
 ```
 
+## Replay Validation Workflow
+
+Replayable scenario contracts now live under `testdata/scenarios/` as JSON files.
+Each contract can carry:
+
+- scenario metadata and success criteria
+- optional runtime overrides for deployment or performance mode
+- an ordered telemetry event stream
+- expected families, response stage, and report fragments
+
+Run a scenario contract through the current runtime with:
+
+```powershell
+cargo run -p sentinelctl -- replay testdata/scenarios/scan-pressure-capture.json
+```
+
+This keeps the validation path close to the self-assessment ideas: decoy-first
+capture, fast-path pressure scoring, bounded response, and human-readable
+explanations are all exercised together.
+
 ## Threat Categories To Start With
 
 - port scan and service fingerprinting
@@ -399,7 +419,7 @@ The first version should prove the core idea with the smallest credible build.
 
 ## Researcher Value
 
-To make the project useful beyond defense operations, CrystalSentinel-CRA should support:
+To make the project useful beyond defense operations, CrystalSentinel-ARC should support:
 
 - reproducible attack scenario definitions
 - PCAP replay and offline analysis
@@ -421,7 +441,7 @@ Measure the project with concrete outcomes, not architecture claims.
 
 ## Non-Goals
 
-CrystalSentinel-CRA should avoid claims that are not technically defensible.
+CrystalSentinel-ARC should avoid claims that are not technically defensible.
 
 - no "100% secure" claims
 - no autonomous retaliation

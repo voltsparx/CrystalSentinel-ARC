@@ -1,6 +1,6 @@
 # Native Layer
 
-This directory holds the non-Rust execution layers for CrystalSentinel-CRA.
+This directory holds the non-Rust execution layers for CrystalSentinel-ARC.
 
 The Rust workspace remains the orchestration and policy plane. The native layer
 exists for capabilities that eventually need lower-level execution,

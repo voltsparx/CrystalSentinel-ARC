@@ -4,7 +4,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.crystalsentinel.sentineld</string>
+  <string>com.crystalsentinel.arc.sentineld</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/sentineld</string>
@@ -14,10 +14,10 @@
   <key>KeepAlive</key>
   <true/>
   <key>WorkingDirectory</key>
-  <string>/usr/local/var/lib/crystalsentinel</string>
+  <string>/usr/local/var/lib/crystalsentinel-arc</string>
   <key>StandardOutPath</key>
-  <string>/usr/local/var/log/crystalsentinel/sentineld.log</string>
+  <string>/usr/local/var/log/crystalsentinel-arc/sentineld.log</string>
   <key>StandardErrorPath</key>
-  <string>/usr/local/var/log/crystalsentinel/sentineld.err.log</string>
+  <string>/usr/local/var/log/crystalsentinel-arc/sentineld.err.log</string>
 </dict>
 </plist>

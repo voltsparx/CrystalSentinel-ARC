@@ -22,7 +22,7 @@ fn main() {
     let mut store = MemoryStore::default();
     let mut decisions = Vec::new();
 
-    println!("CrystalSentinel-CRA runtime starting");
+    println!("CrystalSentinel-ARC runtime starting");
     println!("node: {}", config.node_name);
     println!("intel sources loaded: {}", intel_sources.len());
     println!("framework fingerprints seeded: {}", frameworks.len());

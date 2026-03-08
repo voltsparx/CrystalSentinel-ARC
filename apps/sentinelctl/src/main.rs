@@ -8,7 +8,7 @@ use sentinel_native_bridge::native_layer_manifest;
 use sentinel_rules::{
     available_profiles, load_rule_pack, rule_language_summary, write_compiled_rule_pack,
 };
-use sentinel_scenario::seed_scenarios;
+use sentinel_scenario::{run_replay_fixture_file, seed_scenarios, ReplayRunResult};
 
 fn main() {
     let command = std::env::args()
@@ -131,9 +131,9 @@ fn main() {
             }
         }
         "install-layout" => {
-            println!("linux -> prefix=/usr/local config=/usr/local/etc/crystalsentinel rules=/usr/local/etc/crystalsentinel/rules logs=/usr/local/var/log/crystalsentinel state=/usr/local/var/lib/crystalsentinel");
-            println!("macos -> prefix=/usr/local config=/usr/local/etc/crystalsentinel rules=/usr/local/etc/crystalsentinel/rules logs=/usr/local/var/log/crystalsentinel state=/usr/local/var/lib/crystalsentinel");
-            println!("windows -> program_files=%ProgramFiles%\\CrystalSentinel-CRA program_data=%ProgramData%\\CrystalSentinel-CRA config=%ProgramData%\\CrystalSentinel-CRA\\etc rules=%ProgramData%\\CrystalSentinel-CRA\\etc\\rules");
+            println!("linux -> prefix=/usr/local config=/usr/local/etc/crystalsentinel-arc rules=/usr/local/etc/crystalsentinel-arc/rules logs=/usr/local/var/log/crystalsentinel-arc state=/usr/local/var/lib/crystalsentinel-arc");
+            println!("macos -> prefix=/usr/local config=/usr/local/etc/crystalsentinel-arc rules=/usr/local/etc/crystalsentinel-arc/rules logs=/usr/local/var/log/crystalsentinel-arc state=/usr/local/var/lib/crystalsentinel-arc");
+            println!("windows -> program_files=%ProgramFiles%\\CrystalSentinel-ARC program_data=%ProgramData%\\CrystalSentinel-ARC config=%ProgramData%\\CrystalSentinel-ARC\\etc rules=%ProgramData%\\CrystalSentinel-ARC\\etc\\rules");
         }
         "rule-profiles" => match available_profiles(&repo_root()) {
             Ok(profiles) => {
@@ -185,7 +185,7 @@ fn main() {
             let profile = std::env::args().nth(2);
             let output = std::env::args()
                 .nth(3)
-                .unwrap_or_else(|| "rules/compiled/crystalsentinel.rules".to_string());
+                .unwrap_or_else(|| "rules/compiled/crystalsentinel-arc.rules".to_string());
             match write_compiled_rule_pack(
                 &repo_root(),
                 profile.as_deref(),
@@ -233,8 +233,27 @@ fn main() {
                 println!("{} -> {}", lesson.name, lesson.summary);
             }
         }
+        "replay" => {
+            let Some(path) = std::env::args().nth(2) else {
+                eprintln!("usage: sentinelctl replay <fixture-path>");
+                std::process::exit(1);
+            };
+
+            match run_replay_fixture_file(std::path::Path::new(&path)) {
+                Ok(result) => {
+                    print_replay_result(&result);
+                    if !result.is_valid() {
+                        std::process::exit(1);
+                    }
+                }
+                Err(err) => {
+                    eprintln!("{}", err);
+                    std::process::exit(1);
+                }
+            }
+        }
         _ => {
-            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|install-layout|rule-profiles|rule-pack|rule-build|rule-language|coverage|teach|safe-scans]");
+            println!("usage: sentinelctl [intel|frameworks|patterns|profiles|decoys|scenarios|layers|install-layout|rule-profiles|rule-pack|rule-build|rule-language|coverage|teach|safe-scans|replay]");
         }
     }
 }
@@ -264,6 +283,40 @@ fn print_lesson(lesson: &sentinel_education::ScanTypeLesson) {
     for item in lesson.safety_contract {
         println!("  - {}", item);
     }
+}
+
+fn print_replay_result(result: &ReplayRunResult) {
+    let highest_stage = result
+        .highest_stage()
+        .map(|stage| stage.as_str().to_string())
+        .unwrap_or_else(|| "none".to_string());
+    let families = result.families();
+    println!(
+        "scenario={} asset={} events={} incidents={} highest_stage={} families={} node={} deployment={} performance={}",
+        result.fixture.scenario.name,
+        result.fixture.scenario.protected_asset,
+        result.fixture.events.len(),
+        result.incidents.len(),
+        highest_stage,
+        if families.is_empty() {
+            "none".to_string()
+        } else {
+            families.join(",")
+        },
+        result.config.node_name,
+        result.config.deployment_shape.as_str(),
+        result.config.performance_profile.as_str()
+    );
+    println!(
+        "validation={}",
+        if result.is_valid() { "ok" } else { "failed" }
+    );
+    for error in &result.validation_errors {
+        println!("validation_error={}", error);
+    }
+    println!("{}", result.reports.operator_report);
+    println!("{}", result.reports.human_report);
+    println!("{}", result.reports.care_report);
 }
 
 struct CoverageItem {

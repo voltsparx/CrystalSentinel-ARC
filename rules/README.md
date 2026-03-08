@@ -14,8 +14,8 @@ Versioned security content lives here.
 
 Install layout:
 
-- Linux and macOS: `${prefix}/etc/crystalsentinel/rules`
-- Windows: `%ProgramData%\\CrystalSentinel-CRA\\etc\\rules`
+- Linux and macOS: `${prefix}/etc/crystalsentinel-arc/rules`
+- Windows: `%ProgramData%\\CrystalSentinel-ARC\\etc\\rules`
 
 The current rule files are a CrystalSentinel-native defensive pack. They are
 meant to strengthen detection and containment planning for:

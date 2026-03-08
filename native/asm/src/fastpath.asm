@@ -1,4 +1,4 @@
-; CrystalSentinel-CRA ASM timing primitive
+; CrystalSentinel-ARC ASM timing primitive
 
 global sentinel_asm_cycle_stamp
 

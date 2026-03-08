@@ -9,3 +9,6 @@ Validation is split by outcome type so regressions are easier to isolate.
 - `replay/`: PCAP and scenario replay validation
 - `safety/`: rollback, bounded-response, and false-positive checks
 
+Replay contracts are stored under `testdata/scenarios/` and can be exercised
+manually with `sentinelctl replay <fixture>`. Package-level integration tests
+cover the same path through `apps/sentinelctl/tests/`.
