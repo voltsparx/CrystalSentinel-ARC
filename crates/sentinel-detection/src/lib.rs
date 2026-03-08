@@ -83,6 +83,11 @@ pub fn seed_intel_sources() -> Vec<IntelSource> {
             kind: IntelSourceKind::SecuritySystem,
             summary: "Stateful network analysis, protocol-aware scripting, and notice/intel style coverage.",
         },
+        IntelSource {
+            name: "reference-mesh-heartbeat",
+            kind: IntelSourceKind::InternalNote,
+            summary: "Defensive mesh heartbeat, guardian pulse, and peer-trust drift reference behaviors.",
+        },
     ]
 }
 
@@ -331,6 +336,25 @@ pub fn seed_pattern_identities() -> Vec<PatternIdentity> {
             minimum_matches: 1,
             confidence: 93,
             narrative: "Derived from a local stateful heartbeat policy that raises notices for heartbeat attacks, odd-length requests, and likely exploit success.",
+        },
+        PatternIdentity {
+            name: "mesh-heartbeat-guardian-drift",
+            display_name: "Mesh Heartbeat Guardian Drift Pattern",
+            family: AttackFamily::IntegrityAttack,
+            category: "mesh-heartbeat-guardian",
+            sources: &["reference-mesh-heartbeat"],
+            protocols: &["mesh", "heartbeat", "gossip"],
+            labels: &["mesh", "heartbeat", "peer_trust", "guardian"],
+            indicators: &[
+                "mesh_heartbeat_missing",
+                "mesh_heartbeat_malformed",
+                "guardian_pulse_invalid",
+                "peer_trust_drift",
+                "mesh_gossip_tamper",
+            ],
+            minimum_matches: 2,
+            confidence: 95,
+            narrative: "Recognizes compromised or drifting guardian heartbeats in a defensive mesh so peer trust can be reduced without collapsing the wider environment.",
         },
         PatternIdentity {
             name: "reference-stateful-ssh-password-guessing",
@@ -1371,6 +1395,7 @@ mod tests {
         assert!(names.contains(&"research-high-speed-asynchronous-scan"));
         assert!(names.contains(&"research-service-fingerprint-scan"));
         assert!(names.contains(&"reference-stateful-heartbeat-observer"));
+        assert!(names.contains(&"mesh-heartbeat-guardian-drift"));
         assert!(names.contains(&"reference-stateful-ssh-password-guessing"));
         assert!(names.contains(&"reference-stateful-http-uri-sqli"));
         assert!(names.contains(&"mobile-surveillance-suite"));
@@ -1419,6 +1444,25 @@ mod tests {
 
         assert_eq!(signal.family, AttackFamily::ExploitDelivery);
         assert!(signal.detail.contains("reference-heartbeat-anomaly"));
+    }
+
+    #[test]
+    fn detects_mesh_heartbeat_guardian_drift() {
+        let signal = detect_signal(&TelemetryEvent {
+            kind: TelemetryKind::Integrity,
+            source: "guardian-node-02".to_string(),
+            summary: "mesh_heartbeat_malformed guardian_pulse_invalid peer_trust_drift"
+                .to_string(),
+            health: HealthSnapshot::default(),
+        });
+
+        let recognition = signal.recognition.expect("recognition should exist");
+        assert_eq!(signal.family, AttackFamily::IntegrityAttack);
+        assert_eq!(
+            recognition.display_name,
+            "Mesh Heartbeat Guardian Drift Pattern"
+        );
+        assert!(recognition.labels.contains(&"mesh".to_string()));
     }
 
     #[test]

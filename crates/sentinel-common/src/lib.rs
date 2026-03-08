@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IntelSourceKind {
     OffensiveFramework,
@@ -52,7 +54,8 @@ impl AttackFamily {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum TelemetryKind {
     Packet,
     Flow,
@@ -69,6 +72,17 @@ impl TelemetryKind {
             Self::HostHealth => "host-health",
             Self::Identity => "identity",
             Self::Integrity => "integrity",
+        }
+    }
+
+    pub fn parse(input: &str) -> Result<Self, String> {
+        match normalize_variant(input).as_str() {
+            "packet" => Ok(Self::Packet),
+            "flow" => Ok(Self::Flow),
+            "host-health" => Ok(Self::HostHealth),
+            "identity" => Ok(Self::Identity),
+            "integrity" => Ok(Self::Integrity),
+            other => Err(format!("unknown telemetry kind '{}'", other)),
         }
     }
 }
@@ -110,13 +124,28 @@ impl MitigationStage {
             other
         }
     }
+
+    pub fn parse(input: &str) -> Result<Self, String> {
+        match normalize_variant(input).as_str() {
+            "observe" => Ok(Self::Observe),
+            "throttle" => Ok(Self::Throttle),
+            "contain" => Ok(Self::Contain),
+            "isolate" => Ok(Self::Isolate),
+            "operator-approval" => Ok(Self::OperatorApproval),
+            other => Err(format!("unknown mitigation stage '{}'", other)),
+        }
+    }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HealthSnapshot {
+    #[serde(default)]
     pub cpu_load_pct: u8,
+    #[serde(default)]
     pub memory_load_pct: u8,
+    #[serde(default)]
     pub thermal_c: u8,
+    #[serde(default)]
     pub passive_only: bool,
 }
 
@@ -176,4 +205,12 @@ impl SourceInventory {
             ],
         }
     }
+}
+
+fn normalize_variant(input: &str) -> String {
+    input
+        .trim()
+        .to_ascii_lowercase()
+        .replace('_', "-")
+        .replace(' ', "-")
 }

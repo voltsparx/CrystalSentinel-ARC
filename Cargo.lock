@@ -73,6 +73,9 @@ dependencies = [
 [[package]]
 name = "sentinel-common"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "sentinel-config"
@@ -226,6 +229,8 @@ name = "sentinel-telemetry"
 version = "0.1.0"
 dependencies = [
  "sentinel-common",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -246,6 +251,7 @@ dependencies = [
 name = "sentineld"
 version = "0.1.0"
 dependencies = [
+ "sentinel-common",
  "sentinel-config",
  "sentinel-correlation",
  "sentinel-detection",

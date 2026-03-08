@@ -15,6 +15,14 @@ impl LaunchProfile {
             Self::Architect => "architect",
         }
     }
+
+    pub fn parse(input: &str) -> Result<Self, String> {
+        match normalize_variant(input).as_str() {
+            "protector" => Ok(Self::Protector),
+            "architect" => Ok(Self::Architect),
+            other => Err(format!("unknown launch profile '{}'", other)),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,6 +36,14 @@ impl AutonomyMode {
         match self {
             Self::Assisted => "assisted",
             Self::GuardianAutonomous => "guardian-autonomous",
+        }
+    }
+
+    pub fn parse(input: &str) -> Result<Self, String> {
+        match normalize_variant(input).as_str() {
+            "assisted" => Ok(Self::Assisted),
+            "guardian-autonomous" => Ok(Self::GuardianAutonomous),
+            other => Err(format!("unknown autonomy mode '{}'", other)),
         }
     }
 }
@@ -47,6 +63,15 @@ impl DeploymentShape {
             Self::FragileMesh => "fragile-mesh",
         }
     }
+
+    pub fn parse(input: &str) -> Result<Self, String> {
+        match normalize_variant(input).as_str() {
+            "single-node" => Ok(Self::SingleNode),
+            "multi-node-mesh" => Ok(Self::MultiNodeMesh),
+            "fragile-mesh" => Ok(Self::FragileMesh),
+            other => Err(format!("unknown deployment shape '{}'", other)),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +87,15 @@ impl PerformanceProfile {
             Self::StabilityFirst => "stability-first",
             Self::Balanced => "balanced",
             Self::PressureShield => "pressure-shield",
+        }
+    }
+
+    pub fn parse(input: &str) -> Result<Self, String> {
+        match normalize_variant(input).as_str() {
+            "stability-first" => Ok(Self::StabilityFirst),
+            "balanced" => Ok(Self::Balanced),
+            "pressure-shield" => Ok(Self::PressureShield),
+            other => Err(format!("unknown performance profile '{}'", other)),
         }
     }
 }
@@ -95,4 +129,12 @@ impl Default for RuntimeConfig {
             source_inventory: SourceInventory::current(),
         }
     }
+}
+
+fn normalize_variant(input: &str) -> String {
+    input
+        .trim()
+        .to_ascii_lowercase()
+        .replace('_', "-")
+        .replace(' ', "-")
 }

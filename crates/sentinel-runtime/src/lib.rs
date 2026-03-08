@@ -219,6 +219,7 @@ impl SentinelRuntime {
 
         let plan = adapt_plan(
             ResponsePlanner::plan(&assessment),
+            &assessment,
             posture,
             &awareness,
             asm_directive,
@@ -450,6 +451,7 @@ fn apply_posture_bounds(
 
 fn adapt_plan(
     mut plan: ResponsePlan,
+    assessment: &ThreatAssessment,
     posture: RuntimePosture,
     awareness: &SituationAwareness,
     asm_directive: AsmDefenseDirective,
@@ -469,6 +471,11 @@ fn adapt_plan(
     }
     if matches!(autonomy_plan.pattern, ArchitecturePattern::FragileMeshGuard) {
         push_unique(&mut plan.actions, ResponseAction::ProtectFragileAssets);
+    }
+    if autonomy_plan.allow_mesh_distribution && is_mesh_peer_integrity_event(assessment) {
+        push_unique(&mut plan.actions, ResponseAction::BroadcastMeshAlert);
+        push_unique(&mut plan.actions, ResponseAction::ShiftGuardianCoverage);
+        push_unique(&mut plan.actions, ResponseAction::SuspendPeerTrust);
     }
 
     match posture {
@@ -623,6 +630,13 @@ fn adapt_plan(
         plan.narrative = format!("{} recovery={}", plan.narrative, recovery.summary);
     }
 
+    if autonomy_plan.allow_mesh_distribution && is_mesh_peer_integrity_event(assessment) {
+        plan.narrative = format!(
+            "{} mesh=peer-heartbeat-guard trust=suspended coverage=shifted",
+            plan.narrative
+        );
+    }
+
     plan
 }
 
@@ -660,6 +674,17 @@ fn refine_decoy_plan(mut plan: DecoyPlan, autonomy_plan: &AutonomyPlan) -> Decoy
         plan.narrative, autonomy_plan.narrative
     );
     plan
+}
+
+fn is_mesh_peer_integrity_event(assessment: &ThreatAssessment) -> bool {
+    let Some(recognition) = &assessment.signal.recognition else {
+        return false;
+    };
+
+    recognition
+        .labels
+        .iter()
+        .any(|label| matches!(label.as_str(), "mesh" | "heartbeat" | "peer_trust"))
 }
 
 fn teaching_hint_for(
@@ -1049,5 +1074,46 @@ mod tests {
                 .contains(&sentinel_decoy::DecoyPrimitive::SpotMimicry));
             assert!(decoy.ghost_slots <= decision.autonomy_plan.max_decoy_slots);
         }
+    }
+
+    #[test]
+    fn multi_node_mesh_suspends_peer_trust_on_guardian_drift() {
+        let runtime = SentinelRuntime::default();
+        let config = RuntimeConfig {
+            deployment_shape: DeploymentShape::MultiNodeMesh,
+            performance_profile: PerformanceProfile::Balanced,
+            ..RuntimeConfig::default()
+        };
+        let event = TelemetryEvent {
+            kind: TelemetryKind::Integrity,
+            source: "guardian-node-02".to_string(),
+            summary: "mesh_heartbeat_malformed guardian_pulse_invalid peer_trust_drift"
+                .to_string(),
+            health: HealthSnapshot::default(),
+        };
+
+        let decision = runtime.process_event(&config, &event);
+
+        assert!(decision.autonomy_plan.allow_mesh_distribution);
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::DistributeObservationLoad));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::BroadcastMeshAlert));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::ShiftGuardianCoverage));
+        assert!(decision
+            .plan
+            .actions
+            .contains(&ResponseAction::SuspendPeerTrust));
+        assert!(decision
+            .plan
+            .narrative
+            .contains("mesh=peer-heartbeat-guard"));
     }
 }

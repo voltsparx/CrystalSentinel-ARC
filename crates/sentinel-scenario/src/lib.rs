@@ -366,59 +366,27 @@ fn parse_attack_family(input: &str) -> Result<AttackFamily, String> {
 }
 
 fn parse_telemetry_kind(input: &str) -> Result<TelemetryKind, String> {
-    match normalize(input).as_str() {
-        "packet" => Ok(TelemetryKind::Packet),
-        "flow" => Ok(TelemetryKind::Flow),
-        "host-health" => Ok(TelemetryKind::HostHealth),
-        "identity" => Ok(TelemetryKind::Identity),
-        "integrity" => Ok(TelemetryKind::Integrity),
-        other => Err(format!("unknown telemetry kind '{}'", other)),
-    }
+    TelemetryKind::parse(input)
 }
 
 fn parse_mitigation_stage(input: &str) -> Result<MitigationStage, String> {
-    match normalize(input).as_str() {
-        "observe" => Ok(MitigationStage::Observe),
-        "throttle" => Ok(MitigationStage::Throttle),
-        "contain" => Ok(MitigationStage::Contain),
-        "isolate" => Ok(MitigationStage::Isolate),
-        "operator-approval" => Ok(MitigationStage::OperatorApproval),
-        other => Err(format!("unknown mitigation stage '{}'", other)),
-    }
+    MitigationStage::parse(input)
 }
 
 fn parse_launch_profile(input: &str) -> Result<LaunchProfile, String> {
-    match normalize(input).as_str() {
-        "protector" => Ok(LaunchProfile::Protector),
-        "architect" => Ok(LaunchProfile::Architect),
-        other => Err(format!("unknown launch profile '{}'", other)),
-    }
+    LaunchProfile::parse(input)
 }
 
 fn parse_autonomy_mode(input: &str) -> Result<AutonomyMode, String> {
-    match normalize(input).as_str() {
-        "assisted" => Ok(AutonomyMode::Assisted),
-        "guardian-autonomous" => Ok(AutonomyMode::GuardianAutonomous),
-        other => Err(format!("unknown autonomy mode '{}'", other)),
-    }
+    AutonomyMode::parse(input)
 }
 
 fn parse_deployment_shape(input: &str) -> Result<DeploymentShape, String> {
-    match normalize(input).as_str() {
-        "single-node" => Ok(DeploymentShape::SingleNode),
-        "multi-node-mesh" => Ok(DeploymentShape::MultiNodeMesh),
-        "fragile-mesh" => Ok(DeploymentShape::FragileMesh),
-        other => Err(format!("unknown deployment shape '{}'", other)),
-    }
+    DeploymentShape::parse(input)
 }
 
 fn parse_performance_profile(input: &str) -> Result<PerformanceProfile, String> {
-    match normalize(input).as_str() {
-        "stability-first" => Ok(PerformanceProfile::StabilityFirst),
-        "balanced" => Ok(PerformanceProfile::Balanced),
-        "pressure-shield" => Ok(PerformanceProfile::PressureShield),
-        other => Err(format!("unknown performance profile '{}'", other)),
-    }
+    PerformanceProfile::parse(input)
 }
 
 #[cfg(test)]

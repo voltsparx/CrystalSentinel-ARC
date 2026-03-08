@@ -395,6 +395,38 @@ This keeps the validation path close to the self-assessment ideas: decoy-first
 capture, fast-path pressure scoring, bounded response, and human-readable
 explanations are all exercised together.
 
+## Live Telemetry Ingestion
+
+`sentineld` can now ingest external telemetry streams instead of only seeded
+sample events.
+
+Use a JSONL file:
+
+```powershell
+cargo run -p sentineld -- --telemetry-file testdata/telemetry/sample-stream.jsonl
+```
+
+Or stream JSONL through standard input:
+
+```powershell
+Get-Content testdata/telemetry/sample-stream.jsonl | cargo run -p sentineld -- --stdin-jsonl
+```
+
+Mesh-oriented launch overrides are also available:
+
+```powershell
+Get-Content testdata/telemetry/sample-stream.jsonl | cargo run -p sentineld -- --stdin-jsonl --node-name guardian-01 --deployment-shape multi-node-mesh --autonomy-mode guardian-autonomous --performance-profile balanced
+```
+
+Each line should be one JSON object with this shape:
+
+```json
+{"kind":"packet","source":"203.0.113.88","summary":"syn probe recon fingerprint","health":{"cpu_load_pct":32,"memory_load_pct":28,"thermal_c":58,"passive_only":false}}
+```
+
+This keeps the runtime input path production-oriented without pretending the
+repo already has full packet capture, eBPF, or NIC-HAL integration.
+
 ## Threat Categories To Start With
 
 - port scan and service fingerprinting
